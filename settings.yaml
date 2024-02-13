@@ -1,0 +1,9 @@
+############################################################
+# velocity
+############################################################
+%YAML 1.2
+---
+VERSION: alpha.1  # Major.Minor update this when needed (git commit added on to end for bugfixes)
+SYSTEM: summit
+DISTRO: centos
+IMAGE_DIRECTORY: images

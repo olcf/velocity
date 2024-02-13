@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+
+############################################################
+# import
+############################################################
+import argparse
+import re
+import subprocess
+import yaml
+from lib.graph import Node, DependencyGraph, Target, DepOp
+from lib.build import Builder
+from lib.print import h1print, p1print, sp1print
+
+############################################################
+# Main
+############################################################
+if __name__ == '__main__':
+    ############################################################
+    # Load settings & Config
+    ############################################################
+    with open('settings.yaml', 'r') as file:
+        SETTINGS = yaml.safe_load(file)
+    LATEST_GIT_COMMIT = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode()
+    VERSION = f"{SETTINGS['VERSION']}.{LATEST_GIT_COMMIT}"
+
+    ############################################################
+    # Load images
+    ############################################################
+    dg = DependencyGraph()
+    dg.load_from_directory(SETTINGS['IMAGE_DIRECTORY'])
+
+    ############################################################
+    # Parse Args
+    ############################################################
+    parser = argparse.ArgumentParser(
+        prog='velocity',
+        description='Build tool for OLCF podman containers',
+        epilog='See (https://gitlab.ccs.ornl.gov/saue-software/olcf-images)')
+    parser.add_argument('-v', '--version', action='version',
+                        version=f"%(prog)s {VERSION}", help="program version")
+
+    # create sub_parser
+    sub_parsers = parser.add_subparsers(dest='subcommand')
+
+    # create build_parser
+    build_parser = sub_parsers.add_parser('build', help="build specified container image")
+    build_parser.add_argument('-d', '--dry-run', action='store_true', help="dry run build system")
+    build_parser.add_argument('targets', type=str, nargs='+', help='build targets')
+    build_parser.add_argument('-n', '--name', action='store', help='name of complete image')
+
+    # create avail_parser
+    avail_parser = sub_parsers.add_parser('avail', help="lookup available images")
+
+    args = parser.parse_args()
+
+    ############################################################
+    # Handle User Commands
+    ############################################################
+    if args.subcommand == 'build':
+        # parse targets
+        h1print("PLANNING BUILD ...")
+        targets = []
+        for target in args.targets:
+            result = re.search(r'^(.*)@(.*)([%^_=])(.*)$', target)
+            if result is not None:
+                if result[3] == '=':
+                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.EQ))
+                elif result[3] == '^':
+                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.GE))
+                elif result[3] == '_':
+                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.LE))
+                elif result[3] == '%':
+                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[2]), DepOp.GE))
+                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.LE))
+            else:
+                targets.append(Target(Node(target, SETTINGS['SYSTEM'], SETTINGS['DISTRO'], ''), DepOp.UN))
+
+        # get recipe
+        recipe = dg.create_build_recipe(targets)
+        p1print(f"System: {SETTINGS['SYSTEM']}")
+        p1print(f"Distro: {SETTINGS['DISTRO']}")
+        p1print(f"Images: ")
+        for r in recipe:
+            sp1print(f"{r.name}@={r.tag}")
+
+        builder = Builder(recipe, name=args.name, dry_run=args.dry_run)
+
+        # build
+        h1print("BUILDING ...")
+        builder.build()
+        h1print("COMPLETE")
+
+    elif args.subcommand == 'avail':
+        dg.print_avail()
+    else:
+        parser.print_help()
