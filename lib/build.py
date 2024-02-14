@@ -43,11 +43,12 @@ class BuildUnit:
 
 class Builder:
 
-    def __init__(self, build_seq, name=False, dry_run=False, build_dir='tmp/'):
+    def __init__(self, build_seq, name=False, dry_run=False, build_dir='tmp/', clean_up=True):
         self.build_units = list()
         self.name = name
         self.dry_run = dry_run
         self.build_dir = build_dir
+        self.clean_up =clean_up
 
         for node in build_seq:
             n = BuildUnit(node)
@@ -62,9 +63,13 @@ class Builder:
                 name = f'localhost/{u.build_id}:latest'
             if last is None:
                 build_image(u, '', name, self.dry_run, self.build_dir)
+                if self.clean_up:
+                    subprocess.run(f'podman untag {last}', shell=True)
                 last = name
             else:
                 build_image(u, last, name, self.dry_run, self.build_dir)
+                if self.clean_up:
+                    subprocess.run(f'podman untag {last}', shell=True)
                 last = name
 
 

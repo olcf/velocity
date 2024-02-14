@@ -136,7 +136,9 @@ class DependencyGraph(nx.DiGraph):
         """
         if os.path.isdir(path):
             images = os.listdir(path)
-            images.remove('README.md')
+            for name in images.copy():
+                if not os.path.isdir(f'{path}/{name}'):
+                    images.remove(name)
         else:
             raise NotADirectoryError(path)
 

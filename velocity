@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         prog='velocity',
         description='Build tool for OLCF podman containers',
-        epilog='See (https://gitlab.ccs.ornl.gov/saue-software/olcf-images)')
+        epilog='See (https://gitlab.ccs.ornl.gov/saue-software/velocity)')
     parser.add_argument('-v', '--version', action='version',
                         version=f"%(prog)s {VERSION}", help="program version")
 
@@ -47,6 +47,7 @@ if __name__ == '__main__':
     build_parser.add_argument('-d', '--dry-run', action='store_true', help="dry run build system")
     build_parser.add_argument('targets', type=str, nargs='+', help='build targets')
     build_parser.add_argument('-n', '--name', action='store', help='name of complete image')
+    build_parser.add_argument('-c', '--clean-up', action='store_true', help="clean up intermediate build tags")
 
     # create avail_parser
     avail_parser = sub_parsers.add_parser('avail', help="lookup available images")
@@ -83,7 +84,7 @@ if __name__ == '__main__':
         for r in recipe:
             sp1print(f"{r.name}@={r.tag}")
 
-        builder = Builder(recipe, name=args.name, dry_run=args.dry_run)
+        builder = Builder(recipe, name=args.name, dry_run=args.dry_run, clean_up=args.clean_up)
 
         # build
         h1print("BUILDING ...")
