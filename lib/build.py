@@ -73,7 +73,7 @@ class Builder:
                 last = name
 
         if os.path.isdir(self.build_dir):
-            os.rmdir(self.build_dir)
+            shutil.rmtree(self.build_dir)
 
 
 def build_image(unit: BuildUnit, source: str, name: str, dry_run: bool, build_dir):
