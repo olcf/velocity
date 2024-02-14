@@ -48,7 +48,7 @@ class Builder:
         self.name = name
         self.dry_run = dry_run
         self.build_dir = build_dir
-        self.clean_up =clean_up
+        self.clean_up = clean_up
 
         for node in build_seq:
             n = BuildUnit(node)
@@ -71,6 +71,9 @@ class Builder:
                 if self.clean_up:
                     subprocess.run(f'podman untag {last}', shell=True)
                 last = name
+
+        if os.path.isdir(self.build_dir):
+            os.rmdir(self.build_dir)
 
 
 def build_image(unit: BuildUnit, source: str, name: str, dry_run: bool, build_dir):
