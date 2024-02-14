@@ -323,7 +323,7 @@ class DependencyGraph(nx.DiGraph):
                 return tuple(build_list)
 
         # if we got here no valid build tuple could be found
-        raise NoAvailableBuild
+        raise NoAvailableBuild("No Available build!")
 
     def print_avail(self) -> None:
         h1print("AVAILABLE IMAGES")

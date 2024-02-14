@@ -2,7 +2,7 @@ from colorama import Fore, Back, Style
 
 
 def h1print(text: str):
-    print(Fore.BLUE)
+    print(Fore.BLUE, end='')
     print('#' * 60)
     print('#', text)
     print('#' * 60)
@@ -15,5 +15,5 @@ def p1print(text: str):
 
 
 def sp1print(text: str):
-    print('\t', end='')
+    print(f'{Fore.YELLOW}\t', end='')
     print(text)

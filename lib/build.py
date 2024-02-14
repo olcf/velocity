@@ -102,7 +102,16 @@ def build_image(unit: BuildUnit, source: str, name: str, dry_run: bool, build_di
     p1print(f"{unit.build_id}: BUILDING ...")
     sp1print(unit.get_build_command(source, name))
     if not dry_run:
-        os.system(unit.get_build_command(source, name))
+        process = subprocess.Popen(unit.get_build_command(source, name),
+                                   shell=True, stdout=subprocess.PIPE, universal_newlines=True)
+        while True:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            elif output != '':
+                sp1print(output.strip('\n'))
+        if process.poll() != 0:
+            exit(process.poll())
 
     # return to previous dir
     os.chdir(pwd)
