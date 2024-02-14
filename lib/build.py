@@ -10,16 +10,17 @@ from lib.print import h1print, p1print, sp1print
 
 class BuildUnit:
 
-    def __init__(self, node: Node):
+    def __init__(self, node: Node, path: str):
         self.node = node
         self.build_id = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(8))
         self.build_args = set()
         self.files = set()
         self.prolog = None
+        self.path = f'{path}/{self.node.name}/{self.node.tag}'
 
         # load build settings
-        if os.path.isfile(f'{self.node.path}/{self.node.system}/spec.yaml'):
-            with open(f'{self.node.path}/{self.node.system}/spec.yaml', 'r') as file:
+        if os.path.isfile(f'{self.path}/{self.node.system}/spec.yaml'):
+            with open(f'{self.path}/{self.node.system}/spec.yaml', 'r') as file:
                 spec = yaml.safe_load(file)
                 if 'build_args' in spec:
                     self.build_args = spec['build_args']
@@ -27,10 +28,10 @@ class BuildUnit:
                     self.prolog = spec['prolog']
                 if 'files' in spec:
                     for f in spec['files']:
-                        self.files.add((f'{self.node.path}/{self.node.system}/{f}', f))
+                        self.files.add((f'{self.path}/{self.node.system}/{f}', f))
 
         # add dockerfile
-        self.files.add((f'{self.node.path}/{self.node.distro}.Dockerfile', f'{self.node.distro}.Dockerfile'))
+        self.files.add((f'{self.path}/{self.node.distro}.Dockerfile', f'{self.node.distro}.Dockerfile'))
 
     def get_build_command(self, source='', tag=''):
         build_args = ' '.join(_ for _ in self.build_args).strip(' ')
@@ -43,7 +44,7 @@ class BuildUnit:
 
 class Builder:
 
-    def __init__(self, build_seq, name=False, dry_run=False, build_dir='tmp/', clean_up=True):
+    def __init__(self, build_seq, path, name=False, dry_run=False, build_dir='tmp/', clean_up=True):
         self.build_units = list()
         self.name = name
         self.dry_run = dry_run
@@ -51,7 +52,7 @@ class Builder:
         self.clean_up = clean_up
 
         for node in build_seq:
-            n = BuildUnit(node)
+            n = BuildUnit(node, path)
             self.build_units.append(n)
 
     def build(self):
@@ -63,12 +64,12 @@ class Builder:
                 name = f'localhost/{u.build_id}:latest'
             if last is None:
                 build_image(u, '', name, self.dry_run, self.build_dir)
-                if self.clean_up:
+                if self.clean_up and not self.dry_run:
                     subprocess.run(f'podman untag {last}', shell=True)
                 last = name
             else:
                 build_image(u, last, name, self.dry_run, self.build_dir)
-                if self.clean_up:
+                if self.clean_up and not self.dry_run:
                     subprocess.run(f'podman untag {last}', shell=True)
                 last = name
 

@@ -84,7 +84,7 @@ if __name__ == '__main__':
         for r in recipe:
             sp1print(f"{r.name}@={r.tag}")
 
-        builder = Builder(recipe, name=args.name, dry_run=args.dry_run, clean_up=args.clean_up)
+        builder = Builder(recipe, SETTINGS['IMAGE_DIRECTORY'], name=args.name, dry_run=args.dry_run, clean_up=args.clean_up)
 
         # build
         h1print("BUILDING ...")

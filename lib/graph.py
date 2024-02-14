@@ -40,12 +40,6 @@ class Node:
         self.distro = distro
         self.tag = tag
 
-        # note that path is not considered when determining how two nodes compare to each other
-        self.path = None
-
-    def add_path(self, path: str) -> None:
-        self.path = path
-
     def similar(self, other) -> bool:
         """
         compare two nodes solely on their name and tag
@@ -150,9 +144,7 @@ class DependencyGraph(nx.DiGraph):
                     spec = yaml.safe_load(file)
                     for system in spec['build_specs']:
                         for distro in spec['build_specs'][system]:
-                            node = Node(name, system, distro, tag)
-                            node.add_path(f'{path}/{name}/{tag}')
-                            self.add_node(node)
+                            self.add_node(Node(name, system, distro, tag))
 
         # add dependency edges to graph
         for name in images:
