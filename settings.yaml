@@ -7,3 +7,4 @@ VERSION: alpha.1  # Major.Minor update this when needed (git commit added on to 
 SYSTEM: summit
 DISTRO: centos
 IMAGE_DIRECTORY: images
+BUILD_DIRECTORY: /tmp/velocity/build_dir

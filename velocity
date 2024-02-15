@@ -7,6 +7,7 @@ import argparse
 import re
 import subprocess
 import yaml
+import os
 from lib.graph import Node, DependencyGraph, Target, DepOp
 from lib.build import Builder
 from lib.print import h1print, p1print, sp1print
@@ -27,7 +28,7 @@ if __name__ == '__main__':
     # Load images
     ############################################################
     dg = DependencyGraph()
-    dg.load_from_directory(SETTINGS['IMAGE_DIRECTORY'])
+    dg.load_from_directory(os.path.join(os.getcwd(), SETTINGS['IMAGE_DIRECTORY']))
 
     ############################################################
     # Parse Args
@@ -84,7 +85,9 @@ if __name__ == '__main__':
         for r in recipe:
             sp1print(f"{r.name}@={r.tag}")
 
-        builder = Builder(recipe, SETTINGS['IMAGE_DIRECTORY'], name=args.name, dry_run=args.dry_run, clean_up=args.clean_up)
+        builder = Builder(recipe, os.path.join(os.getcwd(), SETTINGS['IMAGE_DIRECTORY']),
+                          build_name=args.name, dry_run=args.dry_run, clean_up=args.clean_up,
+                          build_dir=SETTINGS['BUILD_DIRECTORY'])
 
         # build
         h1print("BUILDING ...")

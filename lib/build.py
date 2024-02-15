@@ -12,26 +12,21 @@ class BuildUnit:
 
     def __init__(self, node: Node, path: str):
         self.node = node
-        self.build_id = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(8))
+        self.build_id = ''.join(random.choice('ABCDEFG' + string.digits) for _ in range(8))
         self.build_args = set()
-        self.files = set()
         self.prolog = None
-        self.path = f'{path}/{self.node.name}/{self.node.tag}'
+        self.path = os.path.join(path, self.node.name, self.node.tag)
+        self.additional_files = False
 
         # load build settings
         if os.path.isfile(f'{self.path}/{self.node.system}/spec.yaml'):
+            self.additional_files = True
             with open(f'{self.path}/{self.node.system}/spec.yaml', 'r') as file:
                 spec = yaml.safe_load(file)
                 if 'build_args' in spec:
                     self.build_args = spec['build_args']
                 if 'prolog' in spec:
                     self.prolog = spec['prolog']
-                if 'files' in spec:
-                    for f in spec['files']:
-                        self.files.add((f'{self.path}/{self.node.system}/{f}', f))
-
-        # add dockerfile
-        self.files.add((f'{self.path}/{self.node.distro}.Dockerfile', f'{self.node.distro}.Dockerfile'))
 
     def get_build_command(self, source='', tag=''):
         build_args = ' '.join(_ for _ in self.build_args).strip(' ')
@@ -44,76 +39,90 @@ class BuildUnit:
 
 class Builder:
 
-    def __init__(self, build_seq, path, name=False, dry_run=False, build_dir='tmp/', clean_up=True):
+    def __init__(self, bt: tuple[Node], image_dir: str, build_name=None, dry_run=False,
+                 build_dir=os.path.join(os.getcwd(), 'tmp'), clean_up=True):
         self.build_units = list()
-        self.name = name
+        self.build_name = build_name
         self.dry_run = dry_run
         self.build_dir = build_dir
         self.clean_up = clean_up
 
-        for node in build_seq:
-            n = BuildUnit(node, path)
-            self.build_units.append(n)
+        for node in bt:
+            self.build_units.append(BuildUnit(node, image_dir))
 
     def build(self):
         last = None
         for u in self.build_units:
-            if u == self.build_units[-1] and self.name is not None:
-                name = self.name
+            if u == self.build_units[-1] and self.build_name is not None:
+                name = self.build_name
             else:
                 name = f'localhost/{u.build_id}:latest'
             if last is None:
-                build_image(u, '', name, self.dry_run, self.build_dir)
+                self._build_image(u, '', name)
                 if self.clean_up and not self.dry_run:
                     subprocess.run(f'podman untag {last}', shell=True)
                 last = name
             else:
-                build_image(u, last, name, self.dry_run, self.build_dir)
+                self._build_image(u, last, name)
                 if self.clean_up and not self.dry_run:
                     subprocess.run(f'podman untag {last}', shell=True)
                 last = name
 
+    def _build_image(self, unit: BuildUnit, source: str, name: str):
+        p1print(
+            f"{unit.build_id}: BUILD {unit.node.name}@={unit.node.tag}{' --DRY-RUN' if self.dry_run else ''} ...")
+
+        # create build dir
+        if not os.path.isdir(self.build_dir) and not self.dry_run:
+            os.mkdir(self.build_dir)
+
+        p1print(f"{unit.build_id}: COPYING FILES ...")
+        # copy additional files
+        if unit.additional_files:
+            for entry in os.listdir(os.path.join(unit.path, unit.node.system)):
+                sp1print(f'{os.path.join(unit.path, unit.node.system, entry)} -> {os.path.join(self.build_dir, entry)}')
+                if self.dry_run:
+                    continue
+                elif os.path.isdir(os.path.join(unit.path, unit.node.system, entry)):
+                    shutil.copytree(os.path.join(unit.path, unit.node.system, entry),
+                                    os.path.join(self.build_dir, entry))
+                else:
+                    shutil.copy(os.path.join(unit.path, unit.node.system, entry),
+                                os.path.join(self.build_dir, entry))
+        sp1print(f"{os.path.join(unit.path, f'{unit.node.system}.Dockerfile')} -> "
+                 f"{os.path.join(self.build_dir, f'{unit.node.system}.Dockerfile')}")
+        # copy dockerfile
+        if not self.dry_run:
+            shutil.copy(os.path.join(unit.path, f'{unit.node.system}.Dockerfile'),
+                        os.path.join(self.build_dir, f'{unit.node.system}.Dockerfile'))
+
+        # save current dir and go to build dir
+        pwd = os.getcwd()
+        if not self.dry_run:
+            os.chdir(self.build_dir)
+
+        if unit.prolog:
+            p1print(f"{unit.build_id}: RUN PROLOG ...")
+            if not self.dry_run:
+                subprocess.run(f'{unit.build_id}.{unit.prolog}', shell=True)
+
+        p1print(f"{unit.build_id}: BUILDING ...")
+        sp1print(unit.get_build_command(source, name))
+        if not self.dry_run:
+            process = subprocess.Popen(unit.get_build_command(source, name),
+                                       shell=True, stdout=subprocess.PIPE, universal_newlines=True)
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                elif output != '':
+                    sp1print(output.strip('\n'))
+            if process.poll() != 0:
+                exit(process.poll())
+
+        # return to previous dir and delete build dir
+        os.chdir(pwd)
         if os.path.isdir(self.build_dir):
             shutil.rmtree(self.build_dir)
 
-
-def build_image(unit: BuildUnit, source: str, name: str, dry_run: bool, build_dir):
-    p1print(f"{unit.build_id}: START BUILD {unit.node.name}@={unit.node.tag}{' --DRY-RUN' if dry_run else ''} ...")
-
-    if not os.path.isdir(build_dir) and not dry_run:
-        os.mkdir(build_dir)
-
-    p1print(f"{unit.build_id}: COPY FILES ...")
-    for file in list(unit.files):
-        sp1print(f"{file[0]} -> {build_dir}{unit.build_id}.{file[1]}")
-        if not dry_run:
-            shutil.copy(file[0], f'{build_dir}{unit.build_id}.{file[1]}')
-
-    # save current dir and go to build dir
-    pwd = os.getcwd()
-    if not dry_run:
-        os.chdir(build_dir)
-
-    if unit.prolog:
-        p1print(f"{unit.build_id}: PROLOG ...")
-        if not dry_run:
-            subprocess.run(f'{unit.build_id}.{unit.prolog}')
-
-    p1print(f"{unit.build_id}: BUILDING ...")
-    sp1print(unit.get_build_command(source, name))
-    if not dry_run:
-        process = subprocess.Popen(unit.get_build_command(source, name),
-                                   shell=True, stdout=subprocess.PIPE, universal_newlines=True)
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            elif output != '':
-                sp1print(output.strip('\n'))
-        if process.poll() != 0:
-            exit(process.poll())
-
-    # return to previous dir
-    os.chdir(pwd)
-
-    p1print(f"{unit.build_id}: IMAGE {name} BUILT")
+        p1print(f"{unit.build_id}: IMAGE {name} BUILT")

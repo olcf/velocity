@@ -252,7 +252,7 @@ class DependencyGraph(nx.DiGraph):
 
         return valid
 
-    def create_build_recipe(self, targets: list[Target]):
+    def create_build_recipe(self, targets: list[Target]) -> tuple:
         # init build set and priority list
         build_set = set()
         priority_list = list()
