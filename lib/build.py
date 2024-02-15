@@ -12,7 +12,7 @@ class BuildUnit:
 
     def __init__(self, node: Node, path: str):
         self.node = node
-        self.build_id = ''.join(random.choice('ABCDEFG' + string.digits) for _ in range(8))
+        self.build_id = ''.join(random.choice(string.ascii_lowercase) for _ in range(8))
         self.build_args = set()
         self.prolog = None
         self.path = os.path.join(path, self.node.name, self.node.tag)
@@ -28,10 +28,10 @@ class BuildUnit:
                 if 'prolog' in spec:
                     self.prolog = spec['prolog']
 
-    def get_build_command(self, source='', tag=''):
+    def get_build_command(self, build_dir, source='', tag=''):
         build_args = ' '.join(_ for _ in self.build_args).strip(' ')
         IMAGE = f' --build-arg IMAGE={source}' if source != '' else ''
-        docker_file = f'{self.build_id}.{self.node.distro}.Dockerfile'
+        docker_file = os.path.join(build_dir, f'{self.node.distro}.Dockerfile')
         tag = tag if tag != '' else f'localhost/{self.build_id}:latest'
 
         return f'podman build {build_args}{IMAGE} -f {docker_file} -t {tag} .;'
@@ -74,7 +74,7 @@ class Builder:
 
         # create build dir
         if not os.path.isdir(self.build_dir) and not self.dry_run:
-            os.mkdir(self.build_dir)
+            os.makedirs(self.build_dir, exist_ok=True)
 
         p1print(f"{unit.build_id}: COPYING FILES ...")
         # copy additional files
@@ -93,8 +93,8 @@ class Builder:
                  f"{os.path.join(self.build_dir, f'{unit.node.system}.Dockerfile')}")
         # copy dockerfile
         if not self.dry_run:
-            shutil.copy(os.path.join(unit.path, f'{unit.node.system}.Dockerfile'),
-                        os.path.join(self.build_dir, f'{unit.node.system}.Dockerfile'))
+            shutil.copy(os.path.join(unit.path, f'{unit.node.distro}.Dockerfile'),
+                        os.path.join(self.build_dir, f'{unit.node.distro}.Dockerfile'))
 
         # save current dir and go to build dir
         pwd = os.getcwd()
@@ -104,12 +104,13 @@ class Builder:
         if unit.prolog:
             p1print(f"{unit.build_id}: RUN PROLOG ...")
             if not self.dry_run:
-                subprocess.run(f'{unit.build_id}.{unit.prolog}', shell=True)
+                os.chmod(os.path.join(self.build_dir, unit.prolog), 0o774)
+                subprocess.run(os.path.join(self.build_dir, unit.prolog), shell=True)
 
         p1print(f"{unit.build_id}: BUILDING ...")
-        sp1print(unit.get_build_command(source, name))
+        sp1print(unit.get_build_command(self.build_dir, source, name))
         if not self.dry_run:
-            process = subprocess.Popen(unit.get_build_command(source, name),
+            process = subprocess.Popen(unit.get_build_command(self.build_dir, source, name),
                                        shell=True, stdout=subprocess.PIPE, universal_newlines=True)
             while True:
                 output = process.stdout.readline()
