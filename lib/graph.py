@@ -188,7 +188,11 @@ class DependencyGraph(nx.DiGraph):
                                                 self.add_edge(Node(name, system, distro, tag), n)
 
     def add_edge(self, u_of_edge, v_of_edge, **attr):
-        super().add_edge(u_of_edge, v_of_edge, **attr)
+        if self.has_node(u_of_edge) and self.has_node(v_of_edge):
+            super().add_edge(u_of_edge, v_of_edge, **attr)
+        else:
+            raise InvalidDependencySpecification(f'{v_of_edge.name}@={v_of_edge.tag}',
+                                                 u_of_edge.name, u_of_edge.tag, 'the related spec.yaml file')
 
         if not self._is_dag():
             cycle = nx.find_cycle(self)
