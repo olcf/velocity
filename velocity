@@ -11,7 +11,7 @@ import os
 from colorama import Fore, Back, Style
 from lib.graph import Node, DependencyGraph, Target, DepOp
 from lib.build import Builder
-from lib.print import h1print, p1print, sp1print, TextBlock
+from lib.print import h1print, p1print, sp1print, TextBlock, print_text_blocks
 
 ############################################################
 # Main
@@ -54,6 +54,10 @@ if __name__ == '__main__':
     # create avail_parser
     avail_parser = sub_parsers.add_parser('avail', help="lookup available images")
 
+    # create spec_parser
+    spec_parser = sub_parsers.add_parser('spec', help="lookup image dependencies")
+    spec_parser.add_argument('targets', type=str, nargs='+', help='spec targets')
+
     args = parser.parse_args()
 
     ############################################################
@@ -61,7 +65,7 @@ if __name__ == '__main__':
     ############################################################
     if args.subcommand == 'build':
         # parse targets
-        h1print("PLAN BUILD")
+        h1print("BUILD SPECS")
         targets = []
         for target in args.targets:
             result = re.search(r'^(.*)@(.*)([%^_=])(.*)$', target)
@@ -97,6 +101,7 @@ if __name__ == '__main__':
             sp1print([
                 TextBlock(f"{r.name}@={r.tag}", fore=Fore.MAGENTA, style=Style.BRIGHT)
             ])
+        print()
 
         # prep builder
         builder = Builder(recipe, os.path.join(os.getcwd(), SETTINGS['IMAGE_DIRECTORY']),
@@ -106,9 +111,92 @@ if __name__ == '__main__':
         # build
         h1print("BUILD")
         builder.build()
-        h1print("COMPLETE")
 
     elif args.subcommand == 'avail':
-        dg.print_avail()
+        h1print("AVAILABLE IMAGES")
+
+        # group and order
+        grouped = dict()
+        for node in dg.nodes:
+            if node.name not in grouped:
+                grouped[node.name] = list()
+            grouped[node.name].append(node)
+        ordered = list(grouped.keys())
+        ordered.sort()
+
+        # print
+        for group in ordered:
+            p1print([
+                TextBlock(group, fore=Fore.RED, style=Style.BRIGHT)
+            ])
+            deps = grouped[group]
+            deps.sort()
+            for t in deps:
+                sp1print([
+                    TextBlock(t.tag, fore=Fore.MAGENTA, style=Style.BRIGHT)
+                ])
+
+    elif args.subcommand == 'spec':
+        # parse targets
+        targets = []
+        for target in args.targets:
+            result = re.search(r'^(.*)@(.*)([%^_=])(.*)$', target)
+            if result is not None:
+                if result[3] == '=':
+                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.EQ))
+                elif result[3] == '^':
+                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.GE))
+                elif result[3] == '_':
+                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.LE))
+                elif result[3] == '%':
+                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[2]), DepOp.GE))
+                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.LE))
+            else:
+                targets.append(Target(Node(target, SETTINGS['SYSTEM'], SETTINGS['DISTRO'], ''), DepOp.UN))
+
+        # get recipe
+        recipe = dg.create_build_recipe(targets)
+
+        flat_dep_tree = dict()
+        for r in recipe:
+            flat_dep_tree[r.name] = set()
+            deps = set(dg.get_dependencies(r))
+            for o in deps.intersection(set(recipe)):
+                flat_dep_tree[r.name].add(o.name)
+        top_level_entries = set()
+        deps = set()
+        for r in recipe:
+            deps.update(dg.get_dependencies(r))
+        for r in recipe:
+            if r not in deps:
+                top_level_entries.add(r)
+
+        def spec_print(seed: str, indent: int, fdt: dict, rs: tuple[Node]):
+            """
+            Recursive function to print dep tree
+            """
+            spec = None
+            for _ in rs:
+                if _.similar(Node(seed, SETTINGS['SYSTEM'], SETTINGS['DISTRO'], '')):
+                    spec = f"{_.name}@={_.tag}"
+            print('  ' + '   ' * indent, end='')
+            if indent == 0:
+                print_text_blocks([
+                    TextBlock('> ', fore=Fore.RED, style=Style.BRIGHT),
+                    TextBlock(spec, fore=Fore.MAGENTA, style=Style.BRIGHT)
+                ])
+            else:
+                print_text_blocks([
+                    TextBlock('^', fore=Fore.GREEN, style=Style.BRIGHT),
+                    TextBlock(spec, fore=Fore.MAGENTA, style=Style.BRIGHT)
+                ])
+            if len(fdt[seed]) > 0:
+                for un in fdt[seed]:
+                    spec_print(un, (indent + 1), fdt, rs)
+
+        h1print(f"SPEC FOR {' '.join(_ for _ in args.targets)}")
+        for tl in top_level_entries:
+            spec_print(tl.name, 0, flat_dep_tree, recipe)
+
     else:
         parser.print_help()

@@ -85,23 +85,21 @@ class Builder:
 
     def _build_image(self, unit: BuildUnit, source: str, name: str):
         # print start of build
-        text_blocks = [
+        p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
             TextBlock(f": BUILD "),
             TextBlock(f"{unit.node.name}@={unit.node.tag}", fore=Fore.MAGENTA, style=Style.BRIGHT),
             TextBlock(f"{' --DRY-RUN' if self.dry_run else ''} ...")
-        ]
-        p1print(text_blocks)
+        ])
 
         # create build dir
         if not os.path.isdir(self.build_dir) and not self.dry_run:
             os.makedirs(self.build_dir, exist_ok=True)
 
-        text_blocks = [
+        p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
             TextBlock(f": COPYING FILES ...")
-        ]
-        p1print(text_blocks)
+        ])
         # copy additional files
         if unit.additional_files:
             for entry in os.listdir(os.path.join(unit.path, unit.node.system)):
@@ -139,7 +137,7 @@ class Builder:
         if unit.prolog:
             text_blocks = [
                 TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
-                TextBlock(f": RUN PROLOG ...")
+                TextBlock(f": RUNNING PROLOG ...")
             ]
             p1print(text_blocks)
             if not self.dry_run:
@@ -167,3 +165,4 @@ class Builder:
             TextBlock(f"{name}", fore=Fore.MAGENTA, style=Style.BRIGHT),
             TextBlock(f" BUILT")
         ])
+        print()

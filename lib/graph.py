@@ -257,7 +257,7 @@ class DependencyGraph(nx.DiGraph):
 
         return valid
 
-    def create_build_recipe(self, targets: list[Target]) -> tuple:
+    def create_build_recipe(self, targets: list[Target]) -> tuple[Node]:
         # init build set and priority list
         build_set = set()
         priority_list = list()
@@ -329,27 +329,3 @@ class DependencyGraph(nx.DiGraph):
 
         # if we got here no valid build tuple could be found
         raise NoAvailableBuild("No Available build!")
-
-    def print_avail(self) -> None:
-        h1print("AVAILABLE IMAGES")
-
-        # group and order
-        grouped = dict()
-        for node in self.nodes:
-            if node.name not in grouped:
-                grouped[node.name] = list()
-            grouped[node.name].append(node)
-        ordered = list(grouped.keys())
-        ordered.sort()
-
-        # print
-        for group in ordered:
-            p1print([
-                TextBlock(group, fore=Fore.RED, style=Style.BRIGHT)
-            ])
-            tmp = grouped[group]
-            tmp.sort()
-            for t in tmp:
-                sp1print([
-                    TextBlock(t.tag, fore=Fore.MAGENTA, style=Style.BRIGHT)
-                ])
