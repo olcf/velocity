@@ -74,12 +74,12 @@ class Builder:
                 name = f'localhost/{u.build_id}:latest'
             if last is None:
                 self._build_image(u, '', name)
-                if self.clean_up and not self.dry_run:
+                if self.clean_up and not self.dry_run and last is not None:
                     run(f'podman untag {last}')
                 last = name
             else:
                 self._build_image(u, last, name)
-                if self.clean_up and not self.dry_run:
+                if self.clean_up and not self.dry_run and last is not None:
                     run(f'podman untag {last}')
                 last = name
 
