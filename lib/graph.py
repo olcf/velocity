@@ -3,8 +3,9 @@ import re
 import yaml
 import networkx as nx
 from enum import Enum
+from colorama import Fore, Back, Style
 from lib.exceptions import EdgeViolatesDAG, InvalidDependencySpecification, NoAvailableBuild
-from lib.print import h1print, p1print, sp1print
+from lib.print import h1print, p1print, sp1print, TextBlock
 
 
 def get_permutations(idx: int, sets: list[list]):
@@ -343,8 +344,12 @@ class DependencyGraph(nx.DiGraph):
 
         # print
         for group in ordered:
-            p1print(group)
+            p1print([
+                TextBlock(group, fore=Fore.RED, style=Style.BRIGHT)
+            ])
             tmp = grouped[group]
             tmp.sort()
             for t in tmp:
-                sp1print(t.tag)
+                sp1print([
+                    TextBlock(t.tag, fore=Fore.MAGENTA, style=Style.BRIGHT)
+                ])

@@ -4,8 +4,23 @@ import os
 import subprocess
 import string
 import yaml
+from colorama import Fore, Back, Style
 from lib.graph import Node
-from lib.print import h1print, p1print, sp1print
+from lib.print import p1print, sp1print, TextBlock
+
+
+def run(cmd: str):
+    print(Fore.CYAN, end='')
+    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
+    while True:
+        output = process.stdout.readline()
+        if output == '' and process.poll() is not None:
+            break
+        elif output != '':
+            print(output.strip('\n'))
+    if process.poll() != 0:
+        exit(process.poll())
+    print(Style.RESET_ALL, end='')
 
 
 class BuildUnit:
@@ -60,27 +75,42 @@ class Builder:
             if last is None:
                 self._build_image(u, '', name)
                 if self.clean_up and not self.dry_run:
-                    subprocess.run(f'podman untag {last}', shell=True)
+                    run(f'podman untag {last}')
                 last = name
             else:
                 self._build_image(u, last, name)
                 if self.clean_up and not self.dry_run:
-                    subprocess.run(f'podman untag {last}', shell=True)
+                    run(f'podman untag {last}')
                 last = name
 
     def _build_image(self, unit: BuildUnit, source: str, name: str):
-        p1print(
-            f"{unit.build_id}: BUILD {unit.node.name}@={unit.node.tag}{' --DRY-RUN' if self.dry_run else ''} ...")
+        # print start of build
+        text_blocks = [
+            TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+            TextBlock(f": BUILD "),
+            TextBlock(f"{unit.node.name}@={unit.node.tag}", fore=Fore.MAGENTA, style=Style.BRIGHT),
+            TextBlock(f"{' --DRY-RUN' if self.dry_run else ''} ...")
+        ]
+        p1print(text_blocks)
 
         # create build dir
         if not os.path.isdir(self.build_dir) and not self.dry_run:
             os.makedirs(self.build_dir, exist_ok=True)
 
-        p1print(f"{unit.build_id}: COPYING FILES ...")
+        text_blocks = [
+            TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+            TextBlock(f": COPYING FILES ...")
+        ]
+        p1print(text_blocks)
         # copy additional files
         if unit.additional_files:
             for entry in os.listdir(os.path.join(unit.path, unit.node.system)):
-                sp1print(f'{os.path.join(unit.path, unit.node.system, entry)} -> {os.path.join(self.build_dir, entry)}')
+                # print copy operation
+                sp1print([
+                    TextBlock(f"{os.path.join(unit.path, unit.node.system, entry)}", fore=Fore.GREEN),
+                    TextBlock(f" -> ", fore=Fore.YELLOW, style=Style.BRIGHT),
+                    TextBlock(f"{os.path.join(self.build_dir, entry)}", fore=Fore.GREEN)
+                ])
                 if self.dry_run:
                     continue
                 elif os.path.isdir(os.path.join(unit.path, unit.node.system, entry)):
@@ -89,9 +119,14 @@ class Builder:
                 else:
                     shutil.copy(os.path.join(unit.path, unit.node.system, entry),
                                 os.path.join(self.build_dir, entry))
-        sp1print(f"{os.path.join(unit.path, f'{unit.node.system}.Dockerfile')} -> "
-                 f"{os.path.join(self.build_dir, f'{unit.node.system}.Dockerfile')}")
+
         # copy dockerfile
+        # print copy operation
+        sp1print([
+            TextBlock(f"{os.path.join(unit.path, f'{unit.node.system}.Dockerfile')}", fore=Fore.GREEN),
+            TextBlock(f" -> ", fore=Fore.YELLOW, style=Style.BRIGHT),
+            TextBlock(f"{os.path.join(self.build_dir, f'{unit.node.system}.Dockerfile')}", fore=Fore.GREEN)
+        ])
         if not self.dry_run:
             shutil.copy(os.path.join(unit.path, f'{unit.node.distro}.Dockerfile'),
                         os.path.join(self.build_dir, f'{unit.node.distro}.Dockerfile'))
@@ -102,28 +137,33 @@ class Builder:
             os.chdir(self.build_dir)
 
         if unit.prolog:
-            p1print(f"{unit.build_id}: RUN PROLOG ...")
+            text_blocks = [
+                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+                TextBlock(f": RUN PROLOG ...")
+            ]
+            p1print(text_blocks)
             if not self.dry_run:
                 os.chmod(os.path.join(self.build_dir, unit.prolog), 0o774)
-                subprocess.run(os.path.join(self.build_dir, unit.prolog), shell=True)
+                run(os.path.join(self.build_dir, unit.prolog))
 
-        p1print(f"{unit.build_id}: BUILDING ...")
-        sp1print(unit.get_build_command(self.build_dir, source, name))
+        p1print([
+            TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+            TextBlock(f": BUILDING ...")
+        ])
+        sp1print([
+            TextBlock(unit.get_build_command(self.build_dir, source, name), fore=Fore.YELLOW, style=Style.BRIGHT)
+        ])
         if not self.dry_run:
-            process = subprocess.Popen(unit.get_build_command(self.build_dir, source, name),
-                                       shell=True, stdout=subprocess.PIPE, universal_newlines=True)
-            while True:
-                output = process.stdout.readline()
-                if output == '' and process.poll() is not None:
-                    break
-                elif output != '':
-                    sp1print(output.strip('\n'))
-            if process.poll() != 0:
-                exit(process.poll())
+            run(unit.get_build_command(self.build_dir, source, name))
 
         # return to previous dir and delete build dir
         os.chdir(pwd)
         if os.path.isdir(self.build_dir):
             shutil.rmtree(self.build_dir)
 
-        p1print(f"{unit.build_id}: IMAGE {name} BUILT")
+        p1print([
+            TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+            TextBlock(f": IMAGE "),
+            TextBlock(f"{name}", fore=Fore.MAGENTA, style=Style.BRIGHT),
+            TextBlock(f" BUILT")
+        ])
