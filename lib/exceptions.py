@@ -19,3 +19,9 @@ class EdgeViolatesDAG(Exception):
         super().__init__(f"Addition of edge {u_of_edge} -> {v_of_edge} violates graph DAG requirement!")
         for c in cycle:
             print(f'{c[0]} -> {c[1]}', file=stderr)
+
+
+class BackendNotSupported(Exception):
+
+    def __init__(self, backend):
+        super().__init__(f"The '{backend}' is not supported!")

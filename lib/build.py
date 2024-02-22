@@ -3,10 +3,12 @@ import shutil
 import os
 import subprocess
 import string
-import yaml
-from colorama import Fore, Back, Style
+from enum import Enum
+from pathlib import Path
+from colorama import Fore, Style
 from lib.graph import Node
 from lib.print import p1print, sp1print, TextBlock
+from lib.exceptions import BackendNotSupported
 
 
 def run(cmd: str):
@@ -23,65 +25,73 @@ def run(cmd: str):
     print(Style.RESET_ALL, end='')
 
 
+class Podman(Enum):
+    SCRIP_EX = 'Dockerfile'
+    BUILD_CMD = 'podman build'
+
+
+class Apptainer(Enum):
+    SCRIP_EX = 'def'
+    BUILD_CMD = 'apptainer build'
+
+
 class BuildUnit:
 
-    def __init__(self, node: Node, path: str):
+    def __init__(self, node: Node):
         self.node = node
         self.build_id = ''.join(random.choice(string.ascii_lowercase) for _ in range(8))
-        self.build_args = set()
-        self.prolog = None
-        self.path = os.path.join(path, self.node.name, self.node.tag)
-        self.additional_files = False
-
-        # load build settings
-        if os.path.isfile(f'{self.path}/{self.node.system}/spec.yaml'):
-            self.additional_files = True
-            with open(f'{self.path}/{self.node.system}/spec.yaml', 'r') as file:
-                spec = yaml.safe_load(file)
-                if 'build_args' in spec:
-                    self.build_args = spec['build_args']
-                if 'prolog' in spec:
-                    self.prolog = spec['prolog']
-
-    def get_build_command(self, build_dir, source='', tag=''):
-        build_args = ' '.join(_ for _ in self.build_args).strip(' ')
-        IMAGE = f' --build-arg IMAGE={source}' if source != '' else ''
-        docker_file = os.path.join(build_dir, f'{self.node.distro}.Dockerfile')
-        tag = tag if tag != '' else f'localhost/{self.build_id}:latest'
-
-        return f'podman build {build_args}{IMAGE} -f {docker_file} -t {tag} .;'
 
 
 class Builder:
 
-    def __init__(self, bt: tuple[Node], image_dir: str, build_name=None, dry_run=False,
-                 build_dir=os.path.join(os.getcwd(), 'tmp'), clean_up=True):
+    def __init__(self, bt: tuple[Node], backend, system, distro, build_dir,
+                 build_name=None, dry_run=False, leave_tags=True):
         self.build_units = list()
+        self.backend = backend
+        self.system = system
+        self.distro = distro
+        self.build_dir = Path(build_dir)
         self.build_name = build_name
         self.dry_run = dry_run
-        self.build_dir = build_dir
-        self.clean_up = clean_up
+        self.leave_tags = leave_tags
+
+        self.build_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
 
         for node in bt:
-            self.build_units.append(BuildUnit(node, image_dir))
+            self.build_units.append(BuildUnit(node))
 
     def build(self):
-        last = None
+        pwd = Path(Path().absolute())
+
+        for entry in self.build_dir.iterdir():
+            if entry.is_dir():
+                shutil.rmtree(entry)
+            else:
+                entry.unlink()
+
+        last = str()
         for u in self.build_units:
-            if u == self.build_units[-1] and self.build_name is not None:
-                name = self.build_name
-            else:
-                name = f'localhost/{u.build_id}:latest'
-            if last is None:
-                self._build_image(u, '', name)
-                if self.clean_up and not self.dry_run and last is not None:
+            if self.backend == 'podman':
+                if u == self.build_units[-1]:
+                    name = str(self.build_name if self.build_name is not None else u.build_id)
+                else:
+                    name = f'localhost/{u.build_id}:latest'
+                if not self.dry_run and not self.leave_tags and last != '':
                     run(f'podman untag {last}')
-                last = name
+            elif self.backend == 'apptainer':
+                if u == self.build_units[-1]:
+                    name = str(Path.joinpath(pwd.absolute(), self.build_name if self.build_name is not None else u.build_id))
+                    if '.sif' not in name:
+                        name += '.sif'
+                else:
+                    name = str(Path.joinpath(self.build_dir, u.build_id, f'{u.build_id}.sif'))
             else:
-                self._build_image(u, last, name)
-                if self.clean_up and not self.dry_run and last is not None:
-                    run(f'podman untag {last}')
-                last = name
+                raise BackendNotSupported
+
+            self._build_image(u, last, name)
+            last = name
+
+        os.chdir(pwd)
 
     def _build_image(self, unit: BuildUnit, source: str, name: str):
         # print start of build
@@ -92,72 +102,110 @@ class Builder:
             TextBlock(f"{' --DRY-RUN' if self.dry_run else ''} ...")
         ])
 
-        # create build dir
-        if not os.path.isdir(self.build_dir) and not self.dry_run:
-            os.makedirs(self.build_dir, exist_ok=True)
+        # create build dir and go to it
+        build_sub_dir = Path.joinpath(self.build_dir, unit.build_id)
+        build_sub_dir.mkdir(mode=0o744)
+        os.chdir(build_sub_dir)
 
         p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
             TextBlock(f": COPYING FILES ...")
         ])
         # copy additional files
-        if unit.additional_files:
-            for entry in os.listdir(os.path.join(unit.path, unit.node.system)):
+        if Path.joinpath(unit.node.path, self.system).is_dir():
+
+            for entry in Path.joinpath(unit.node.path, self.system).iterdir():
                 # print copy operation
                 sp1print([
-                    TextBlock(f"{os.path.join(unit.path, unit.node.system, entry)}", fore=Fore.GREEN),
+                    TextBlock('DIR: ' if entry.is_dir() else 'FILE: ', fore=Fore.YELLOW, style=Style.BRIGHT),
+                    TextBlock(f"{entry.absolute()}", fore=Fore.GREEN),
                     TextBlock(f" -> ", fore=Fore.YELLOW, style=Style.BRIGHT),
-                    TextBlock(f"{os.path.join(self.build_dir, entry)}", fore=Fore.GREEN)
+                    TextBlock(f"{Path.joinpath(build_sub_dir, entry.name).absolute()}", fore=Fore.GREEN)
                 ])
-                if self.dry_run:
-                    continue
-                elif os.path.isdir(os.path.join(unit.path, unit.node.system, entry)):
-                    shutil.copytree(os.path.join(unit.path, unit.node.system, entry),
-                                    os.path.join(self.build_dir, entry))
+                if entry.is_dir():
+                    shutil.copytree(entry, Path.joinpath(build_sub_dir, entry.name))
                 else:
-                    shutil.copy(os.path.join(unit.path, unit.node.system, entry),
-                                os.path.join(self.build_dir, entry))
+                    shutil.copy(entry, Path.joinpath(build_sub_dir, entry.name))
 
-        # copy dockerfile
-        # print copy operation
-        sp1print([
-            TextBlock(f"{os.path.join(unit.path, f'{unit.node.system}.Dockerfile')}", fore=Fore.GREEN),
-            TextBlock(f" -> ", fore=Fore.YELLOW, style=Style.BRIGHT),
-            TextBlock(f"{os.path.join(self.build_dir, f'{unit.node.system}.Dockerfile')}", fore=Fore.GREEN)
-        ])
-        if not self.dry_run:
-            shutil.copy(os.path.join(unit.path, f'{unit.node.distro}.Dockerfile'),
-                        os.path.join(self.build_dir, f'{unit.node.distro}.Dockerfile'))
-
-        # save current dir and go to build dir
-        pwd = os.getcwd()
-        if not self.dry_run:
-            os.chdir(self.build_dir)
-
-        if unit.prolog:
-            text_blocks = [
-                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
-                TextBlock(f": RUNNING PROLOG ...")
-            ]
-            p1print(text_blocks)
+        # diverge for backend
+        if self.backend == 'podman':
+            # copy script
+            sp1print([
+                TextBlock('SCRIPT: ', fore=Fore.YELLOW, style=Style.BRIGHT),
+                TextBlock(
+                    f"{Path.joinpath(unit.node.path, 'build_scripts', f'{self.distro}.{Podman.SCRIP_EX.value}')}",
+                    fore=Fore.GREEN),
+                TextBlock(f" -> ", fore=Fore.YELLOW, style=Style.BRIGHT),
+                TextBlock(f"{Path.joinpath(build_sub_dir, f'{unit.build_id}.{Podman.SCRIP_EX.value}')}", fore=Fore.GREEN)
+            ])
             if not self.dry_run:
-                os.chmod(os.path.join(self.build_dir, unit.prolog), 0o774)
-                run(os.path.join(self.build_dir, unit.prolog))
+                shutil.copy(Path.joinpath(unit.node.path, 'build_scripts', f'{self.distro}.{Podman.SCRIP_EX.value}'),
+                            Path.joinpath(build_sub_dir, f'{unit.build_id}.{Podman.SCRIP_EX.value}'))
 
-        p1print([
-            TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
-            TextBlock(f": BUILDING ...")
-        ])
-        sp1print([
-            TextBlock(unit.get_build_command(self.build_dir, source, name), fore=Fore.YELLOW, style=Style.BRIGHT)
-        ])
-        if not self.dry_run:
-            run(unit.get_build_command(self.build_dir, source, name))
+            # run prolog for podman build
+            if 'prolog' in unit.node.build_spec:
+                p1print([
+                    TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+                    TextBlock(f": RUNNING PROLOG ...")
+                ])
+                if not self.dry_run:
+                    prolog = Path.joinpath(build_sub_dir, unit.node.build_spec['prolog'])
+                    prolog.chmod(0o744)
+                    run(str(prolog.absolute()))
 
-        # return to previous dir and delete build dir
-        os.chdir(pwd)
-        if os.path.isdir(self.build_dir):
-            shutil.rmtree(self.build_dir)
+            # build
+            p1print([
+                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+                TextBlock(f": BUILDING ...")
+            ])
+            build_args = ' '.join(_ for _ in unit.node.build_spec['build_args']) if 'build_args' in unit.node.build_spec else ''
+            IMAGE = f'--build-arg IMAGE={source}'
+            script = f'-f {Path.joinpath(build_sub_dir, f"{unit.build_id}.{Podman.SCRIP_EX.value}")}'
+            dest = f'-t {name}'
+            end = ' . ;'
+
+            cmd = [Podman.BUILD_CMD.value, build_args, IMAGE, script, dest, end]
+            sp1print([
+                TextBlock(' '.join(_ for _ in cmd), fore=Fore.YELLOW, style=Style.BRIGHT)
+            ])
+            if not self.dry_run:
+                run(' '.join(_ for _ in cmd))
+
+        elif self.backend == 'apptainer':
+            # copy script
+            sp1print([
+                TextBlock('SCRIPT: ', fore=Fore.YELLOW, style=Style.BRIGHT),
+                TextBlock(
+                    f"{Path.joinpath(unit.node.path, 'build_scripts', f'{self.distro}.{Apptainer.SCRIP_EX.value}')}",
+                    fore=Fore.GREEN),
+                TextBlock(f" -> ", fore=Fore.YELLOW, style=Style.BRIGHT),
+                TextBlock(f"{Path.joinpath(build_sub_dir, f'{unit.build_id}.{Apptainer.SCRIP_EX.value}')}", fore=Fore.GREEN)
+            ])
+            if not self.dry_run:
+                shutil.copy(Path.joinpath(unit.node.path, 'build_scripts', f'{self.distro}.{Apptainer.SCRIP_EX.value}'),
+                            Path.joinpath(build_sub_dir, f'{unit.build_id}.{Apptainer.SCRIP_EX.value}'))
+
+            # no prolog needed for apptainer build
+
+            # build
+            p1print([
+                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+                TextBlock(f": BUILDING ...")
+            ])
+            build_args = ' '.join(
+                x for x in unit.node.build_spec['build_args']) if 'build_args' in unit.node.build_spec else ''
+            IMAGE = f'--build-arg IMAGE={source}'
+            script = f'{Path.joinpath(build_sub_dir, f"{unit.build_id}.{Apptainer.SCRIP_EX.value}")}'
+            dest = f'{name}'
+            end = ';'
+
+            cmd = [Apptainer.BUILD_CMD.value, build_args, IMAGE, script, dest, end]
+            sp1print([
+                TextBlock(' '.join(_ for _ in cmd), fore=Fore.YELLOW, style=Style.BRIGHT)
+            ])
+
+        else:
+            raise BackendNotSupported(self.backend)
 
         p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),

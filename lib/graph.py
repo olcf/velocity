@@ -1,11 +1,9 @@
-import os
 import re
 import yaml
 import networkx as nx
 from enum import Enum
-from colorama import Fore, Back, Style
+from pathlib import Path
 from lib.exceptions import EdgeViolatesDAG, InvalidDependencySpecification, NoAvailableBuild
-from lib.print import h1print, p1print, sp1print, TextBlock
 
 
 def get_permutations(idx: int, sets: list[list]):
@@ -35,64 +33,57 @@ class Node:
     host system, base image distro and image tag.
     """
 
-    def __init__(self, name: str, system: str, distro: str, tag: str) -> None:
+    def __init__(self, name: str, tag: str, path: Path = None, build_spec: dict = None, spec_yaml: dict = None) -> None:
         self.name = name
-        self.system = system
-        self.distro = distro
         self.tag = tag
+        self.path = path
+        self.build_spec = build_spec
+        self.spec_yaml = spec_yaml
 
     def similar(self, other) -> bool:
         """
-        compare two nodes solely on their name and tag
-        :param other: node to compare with
-        :return: true if the nodes share the same name and tag false otherwise
+        Check if two nodes share the same name.
         """
-        if (isinstance(other, Node) and self.name == other.name and
-                self.system == other.system and self.distro == other.distro):
+        if isinstance(other, Node) and self.name == other.name:
             return True
         else:
             return False
 
     def __eq__(self, other) -> bool:
-        if (isinstance(other, Node) and self.name == other.name and self.system == other.system and
-                self.distro == other.distro and self.tag == other.tag):
+        if isinstance(other, Node) and self.name == other.name and self.tag == other.tag:
             return True
         else:
             return False
 
     def __gt__(self, other) -> bool:
-        if (isinstance(other, Node) and self.name == other.name and self.system == other.system and
-                self.distro == other.distro and self.tag > other.tag):
+        if isinstance(other, Node) and self.name == other.name and self.tag > other.tag:
             return True
         else:
             return False
 
     def __ge__(self, other) -> bool:
-        if (isinstance(other, Node) and self.name == other.name and self.system == other.system and
-                self.distro == other.distro and self.tag >= other.tag):
+        if isinstance(other, Node) and self.name == other.name and self.tag >= other.tag:
             return True
         else:
             return False
 
     def __lt__(self, other) -> bool:
-        if (isinstance(other, Node) and self.name == other.name and self.system == other.system and
-                self.distro == other.distro and self.tag < other.tag):
+        if isinstance(other, Node) and self.name == other.name and self.tag < other.tag:
             return True
         else:
             return False
 
     def __le__(self, other) -> bool:
-        if (isinstance(other, Node) and self.name == other.name and self.system == other.system and
-                self.distro == other.distro and self.tag <= other.tag):
+        if isinstance(other, Node) and self.name == other.name and self.tag <= other.tag:
             return True
         else:
             return False
 
     def __hash__(self) -> int:
-        return hash(self.name + self.system + self.distro + self.tag)
+        return hash(self.name + self.tag)
 
     def __str__(self) -> str:
-        return f'Node({self.name}, {self.system}, {self.distro}, {self.tag})'
+        return f'Node({self.name}, {self.tag})'
 
 
 class DepOp(Enum):
@@ -118,89 +109,72 @@ class Target:
         return f'Target: {self.op} -> {str(self.node)}'
 
 
-class DependencyGraph(nx.DiGraph):
+class ImageGraph(nx.DiGraph):
 
-    def __init__(self, **attr) -> None:
+    def __init__(self, path: str, backend: str, system: str, distro: str, **attr) -> None:
         super().__init__(**attr)
+        self.backend = backend
+        self.system = system
+        self.distro = distro
 
-    def load_from_directory(self, path) -> None:
-        """
-        load images from a specified directory
-        :param path: path to load images from
-        :return: None
-        """
-        if os.path.isdir(path):
-            images = os.listdir(path)
-            for name in images.copy():
-                if not os.path.isdir(f'{path}/{name}'):
-                    images.remove(name)
-        else:
+        p = Path(path)
+        if not p.is_dir():
             raise NotADirectoryError(path)
 
         # add nodes to graph (dependencies are added later once all nodes are in the graph)
-        for name in images:
-            tags = os.listdir(f'{path}/{name}')
-            for tag in tags:
-                with open(f'{path}/{name}/{tag}/spec.yaml', 'r') as file:
+        for name in [x for x in p.iterdir() if x.is_dir()]:
+            for tag in [x for x in name.iterdir() if x.is_dir()]:
+                with open(Path.joinpath(tag, 'spec.yaml'), 'r') as file:
                     spec = yaml.safe_load(file)
-                    for system in spec['build_specs']:
-                        for distro in spec['build_specs'][system]:
-                            self.add_node(Node(name, system, distro, tag))
+                    if self.backend in spec['build_specs']:
+                        if self.system in spec['build_specs'][self.backend]:
+                            if self.distro in spec['build_specs'][self.backend][self.system]:
+                                self.add_node(Node(name.name, tag.name, tag.absolute(),
+                                                   spec['build_specs'][self.backend][self.system][self.distro], spec))
 
         # add dependency edges to graph
-        for name in images:
-            tags = os.listdir(f'{path}/{name}')
-            for tag in tags:
-                with open(f'{path}/{name}/{tag}/spec.yaml', 'r') as file:
-                    spec = yaml.safe_load(file)
-                    for system in spec['build_specs']:
-                        for distro in spec['build_specs'][system]:
-                            if spec['build_specs'][system][distro] is not None:
+        for node in self.nodes:
+            if 'dependencies' in node.build_spec:
+                for dependency in node.build_spec['dependencies']:
+                    if dependency is None:
+                        raise InvalidDependencySpecification(dependency, node.name, node.tag,
+                                                             Path.joinpath(node.path, 'spec.yaml'))
+                    else:
+                        # split up specification into parts
+                        result = re.search(r'^(.*)@(.*)([%^_=])(.*)$', dependency)
 
-                                for dependency in spec['build_specs'][system][distro]:
-                                    if dependency is None:
-                                        raise InvalidDependencySpecification(dependency, name, tag,
-                                                                             f'{path}/{name}/{tag}/spec.yaml')
-                                    else:
-                                        # split up specification into parts
-                                        result = re.search(r'^(.*)@(.*)([%^_=])(.*)$', dependency)
+                        # add the specified edge(s) to the graph
+                        if result is not None:
+                            if result[3] == '=':
+                                self.add_edge(node, Node(result[1], result[4]))
+                            elif result[3] == '^':
+                                for n in self.nodes:
+                                    if n >= Node(result[1], result[4]):
+                                        self.add_edge(node, n)
+                            elif result[3] == '_':
+                                for n in self.nodes:
+                                    if n <= Node(result[1], result[4]):
+                                        self.add_edge(node, n)
+                            elif result[3] == '%':
+                                for n in self.nodes:
+                                    if Node(result[1], result[2]) <= n <= Node(result[1], result[4]):
+                                        self.add_edge(node, n)
+                        else:
+                            for n in self.nodes:
+                                if n.similar(Node(dependency, '')):
+                                    self.add_edge(node, n)
 
-                                    # add the specified edge(s) to the graph
-                                    if result is not None:
-                                        if result[3] == '=':
-                                            self.add_edge(Node(name, system, distro, tag),
-                                                          Node(result[1], system, distro, result[4]))
-                                        elif result[3] == '^':
-                                            for n in self.nodes:
-                                                if n >= Node(result[1], system, distro, result[4]):
-                                                    self.add_edge(Node(name, system, distro, tag), n)
-                                        elif result[3] == '_':
-                                            for n in self.nodes:
-                                                if n <= Node(result[1], system, distro, result[4]):
-                                                    self.add_edge(Node(name, system, distro, tag), n)
-                                        elif result[3] == '%':
-                                            for n in self.nodes:
-                                                if (Node(result[1], system, distro, result[2]) <= n
-                                                        <= Node(result[1], system, distro, result[4])):
-                                                    self.add_edge(Node(name, system, distro, tag), n)
-                                    else:
-                                        for n in self.nodes:
-                                            if n.similar(Node(dependency, system, distro, '')):
-                                                self.add_edge(Node(name, system, distro, tag), n)
-
-    def add_edge(self, u_of_edge, v_of_edge, **attr):
+    def add_edge(self, u_of_edge: Node, v_of_edge: Node, **attr):
         if self.has_node(u_of_edge) and self.has_node(v_of_edge):
             super().add_edge(u_of_edge, v_of_edge, **attr)
         else:
             raise InvalidDependencySpecification(f'{v_of_edge.name}@={v_of_edge.tag}',
-                                                 u_of_edge.name, u_of_edge.tag, 'the related spec.yaml file')
+                                                 u_of_edge.name, u_of_edge.tag,
+                                                 Path.joinpath(u_of_edge.path, 'spec.yaml'))
 
-        if not self._is_dag():
+        if not nx.is_directed_acyclic_graph(self):
             cycle = nx.find_cycle(self)
             raise EdgeViolatesDAG(u_of_edge, v_of_edge, cycle)
-
-    def _is_dag(self) -> bool:
-        return nx.is_directed_acyclic_graph(self)
 
     def get_similar_nodes(self, node: Node) -> set:
         similar = set()
@@ -257,7 +231,7 @@ class DependencyGraph(nx.DiGraph):
 
         return valid
 
-    def create_build_recipe(self, targets: list[Target]) -> tuple[Node]:
+    def create_build_recipe(self, targets: list[Target]) -> tuple:
         # init build set and priority list
         build_set = set()
         priority_list = list()
