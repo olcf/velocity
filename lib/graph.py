@@ -198,7 +198,15 @@ class ImageGraph(nx.DiGraph):
         return similar
 
     def get_dependencies(self, node: Node):
-        return nx.neighbors(self, node)
+        # had to add this wrapper because nx.neighbors was dropping the attributes of some nodes (cuda, python)
+        deps = set()
+        for node in nx.neighbors(self, node):
+            for n in self.nodes:
+                if n == node:
+                    deps.add(n)
+        # will contact the maintainers of networkx at some point
+
+        return deps
 
     def is_above(self, u_node: Node, v_node: Node) -> bool:
         """

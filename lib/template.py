@@ -26,7 +26,7 @@ def parse_template(file: TextIO, section: str, variables: dict) -> list[str]:
         Substitute a template variable.
         """
         if m.group(1) in variables:
-            return variables[m.group(1)]
+            return str(variables[m.group(1)])
         else:
             raise UndefinedVariableInTemplate(m.group(1))
 
