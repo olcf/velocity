@@ -10,14 +10,6 @@ class TextBlock:
         self.style = style
 
 
-def h1print(text: str):
-    text_blocks = [
-        TextBlock('# ', fore=Fore.BLUE, style=Style.BRIGHT),
-        TextBlock(text, fore=Fore.BLUE, style=Style.BRIGHT)
-    ]
-    print_text_blocks(text_blocks)
-
-
 def p1print(tb: list[TextBlock]):
     text_blocks = [
         TextBlock('==> ', fore=Fore.LIGHTGREEN_EX, style=Style.BRIGHT)

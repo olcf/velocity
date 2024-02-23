@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-############################################################
-# import
-############################################################
 import argparse
 import re
 import subprocess
@@ -10,12 +7,13 @@ import yaml
 from colorama import Fore, Style
 from lib.graph import Node, ImageGraph, Target, DepOp
 from lib.build import Builder
-from lib.print import h1print, p1print, sp1print, TextBlock, print_text_blocks
+from lib.print import p1print, sp1print, TextBlock, print_text_blocks
 
 ############################################################
 # Main
 ############################################################
 if __name__ == '__main__':
+
     ############################################################
     # Load settings & Config
     ############################################################
@@ -23,11 +21,6 @@ if __name__ == '__main__':
         SETTINGS = yaml.safe_load(file)
     LATEST_GIT_COMMIT = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode()
     VERSION = f"{SETTINGS['VERSION']}.{LATEST_GIT_COMMIT}"
-
-    ############################################################
-    # Load images
-    ############################################################
-    imageGraph = ImageGraph(SETTINGS['IMAGE_DIRECTORY'], SETTINGS['BACKEND'], SETTINGS['SYSTEM'], SETTINGS['DISTRO'])
 
     ############################################################
     # Parse Args
@@ -38,8 +31,9 @@ if __name__ == '__main__':
         epilog='See (https://gitlab.ccs.ornl.gov/saue-software/velocity)')
     parser.add_argument('-v', '--version', action='version',
                         version=f"%(prog)s {VERSION}", help="program version")
+    parser.add_argument('-b', '--backend', action='store', help="specify build system backend")
 
-    # create sub_parser
+    # create sub_parsers
     sub_parsers = parser.add_subparsers(dest='subcommand')
 
     # create build_parser
@@ -57,14 +51,39 @@ if __name__ == '__main__':
     spec_parser = sub_parsers.add_parser('spec', help="lookup image dependencies")
     spec_parser.add_argument('targets', type=str, nargs='+', help='spec targets')
 
+    # parse args
     args = parser.parse_args()
+
+    ############################################################
+    # apply user run time arguments over settings
+    ############################################################
+    SETTINGS['BACKEND'] = args.backend if args.backend is not None else SETTINGS['BACKEND']
+
+    ############################################################
+    # Load images
+    ############################################################
+    imageGraph = ImageGraph(SETTINGS['IMAGE_DIRECTORY'], SETTINGS['BACKEND'], SETTINGS['SYSTEM'], SETTINGS['DISTRO'])
+
+    # print backend, system, distro
+    p1print([
+        TextBlock(f"Backend: "),
+        TextBlock(f"{SETTINGS['BACKEND']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
+    ])
+    p1print([
+        TextBlock(f"System: "),
+        TextBlock(f"{SETTINGS['SYSTEM']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
+    ])
+    p1print([
+        TextBlock(f"Distro: "),
+        TextBlock(f"{SETTINGS['DISTRO']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
+    ])
+    print()     # add newline
 
     ############################################################
     # Handle User Commands
     ############################################################
     if args.subcommand == 'build':
         # parse targets
-        h1print("BUILD SPECS")
         targets = []
         for target in args.targets:
             result = re.search(r'^(.*)@(.*)([%^_=])(.*)$', target)
@@ -86,25 +105,13 @@ if __name__ == '__main__':
 
         # print build specs
         p1print([
-            TextBlock(f"Backend: "),
-            TextBlock(f"{SETTINGS['BACKEND']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
-        ])
-        p1print([
-            TextBlock(f"System: "),
-            TextBlock(f"{SETTINGS['SYSTEM']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
-        ])
-        p1print([
-            TextBlock(f"Distro: "),
-            TextBlock(f"{SETTINGS['DISTRO']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
-        ])
-        p1print([
-            TextBlock(f"Images: ")
+            TextBlock('Build Order:')
         ])
         for r in recipe:
             sp1print([
                 TextBlock(f"{r.name}@={r.tag}", fore=Fore.MAGENTA, style=Style.BRIGHT)
             ])
-        print()
+        print()     # add newline
 
         # prep builder
         builder = Builder(recipe, SETTINGS['BACKEND'], SETTINGS['SYSTEM'], SETTINGS['DISTRO'],
@@ -112,19 +119,9 @@ if __name__ == '__main__':
                           build_dir=SETTINGS['BUILD_DIRECTORY'])
 
         # build
-        h1print("BUILD")
         builder.build()
 
     elif args.subcommand == 'avail':
-        h1print("AVAILABLE IMAGES")
-        p1print([
-            TextBlock(f"System: "),
-            TextBlock(f"{SETTINGS['SYSTEM']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
-        ])
-        p1print([
-            TextBlock(f"Distro: "),
-            TextBlock(f"{SETTINGS['DISTRO']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
-        ])
 
         # group and order
         grouped = dict()
@@ -146,6 +143,7 @@ if __name__ == '__main__':
                 sp1print([
                     TextBlock(t.tag, fore=Fore.YELLOW, style=Style.BRIGHT)
                 ])
+        print()  # add newline
 
     elif args.subcommand == 'spec':
         # parse targets
@@ -154,26 +152,28 @@ if __name__ == '__main__':
             result = re.search(r'^(.*)@(.*)([%^_=])(.*)$', target)
             if result is not None:
                 if result[3] == '=':
-                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.EQ))
+                    targets.append(Target(Node(result[1], result[4]), DepOp.EQ))
                 elif result[3] == '^':
-                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.GE))
+                    targets.append(Target(Node(result[1], result[4]), DepOp.GE))
                 elif result[3] == '_':
-                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.LE))
+                    targets.append(Target(Node(result[1], result[4]), DepOp.LE))
                 elif result[3] == '%':
-                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[2]), DepOp.GE))
-                    targets.append(Target(Node(result[1], SETTINGS['SYSTEM'], SETTINGS['DISTRO'], result[4]), DepOp.LE))
+                    targets.append(Target(Node(result[1], result[2]), DepOp.GE))
+                    targets.append(Target(Node(result[1], result[4]), DepOp.LE))
             else:
-                targets.append(Target(Node(target, SETTINGS['SYSTEM'], SETTINGS['DISTRO'], ''), DepOp.UN))
+                targets.append(Target(Node(target, ''), DepOp.UN))
 
         # get recipe
         recipe = imageGraph.create_build_recipe(targets)
 
+        # flatten dependency tree
         flat_dep_tree = dict()
         for r in recipe:
             flat_dep_tree[r.name] = set()
             deps = set(imageGraph.get_dependencies(r))
             for o in deps.intersection(set(recipe)):
                 flat_dep_tree[r.name].add(o.name)
+        # get top level entries
         top_level_entries = set()
         deps = set()
         for r in recipe:
@@ -188,7 +188,7 @@ if __name__ == '__main__':
             """
             spec = None
             for _ in rs:
-                if _.similar(Node(seed, SETTINGS['SYSTEM'], SETTINGS['DISTRO'], '')):
+                if _.similar(Node(seed, '')):
                     spec = f"{_.name}@={_.tag}"
             print('  ' + '   ' * indent, end='')
             if indent == 0:
@@ -205,9 +205,10 @@ if __name__ == '__main__':
                 for un in fdt[seed]:
                     spec_print(un, (indent + 1), fdt, rs)
 
-        h1print(f"SPEC FOR {' '.join(_ for _ in args.targets)}")
+        # print specs
         for tl in top_level_entries:
             spec_print(tl.name, 0, flat_dep_tree, recipe)
+        print()  # add newline
 
     else:
         parser.print_help()

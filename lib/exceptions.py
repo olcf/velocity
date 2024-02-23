@@ -25,3 +25,9 @@ class BackendNotSupported(Exception):
 
     def __init__(self, backend):
         super().__init__(f"The '{backend}' is not supported!")
+
+
+class UndefinedVariableInTemplate(Exception):
+
+    def __init__(self, variable):
+        super().__init__(f"The variable '{variable}' is undefined!")

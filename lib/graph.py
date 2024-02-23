@@ -9,9 +9,9 @@ from lib.exceptions import EdgeViolatesDAG, InvalidDependencySpecification, NoAv
 def get_permutations(idx: int, sets: list[list]):
     """
     Get all the possible permutations from a list of lists
-    :param idx:
-    :param sets:
-    :return:
+    :param idx: iteration level
+    :param sets: sets for permutation
+    :return: permutations
     """
     permutations = list()
     if len(sets) == 0:
@@ -33,12 +33,13 @@ class Node:
     host system, base image distro and image tag.
     """
 
-    def __init__(self, name: str, tag: str, path: Path = None, build_spec: dict = None, spec_yaml: dict = None) -> None:
+    def __init__(self, name: str, tag: str, path: Path = None, build_specifications: dict = None,
+                 specifications_yaml: dict = None) -> None:
         self.name = name
         self.tag = tag
         self.path = path
-        self.build_spec = build_spec
-        self.spec_yaml = spec_yaml
+        self.build_specifications = build_specifications
+        self.specifications_yaml = specifications_yaml
 
     def similar(self, other) -> bool:
         """
@@ -124,54 +125,67 @@ class ImageGraph(nx.DiGraph):
         # add nodes to graph (dependencies are added later once all nodes are in the graph)
         for name in [x for x in p.iterdir() if x.is_dir()]:
             for tag in [x for x in name.iterdir() if x.is_dir()]:
-                with open(Path.joinpath(tag, 'spec.yaml'), 'r') as file:
-                    spec = yaml.safe_load(file)
-                    if self.backend in spec['build_specs']:
-                        if self.system in spec['build_specs'][self.backend]:
-                            if self.distro in spec['build_specs'][self.backend][self.system]:
+                with open(Path.joinpath(tag, 'specifications.yaml'), 'r') as file:
+                    specifications = yaml.safe_load(file)
+                    if self.backend in specifications['build_specifications']:
+                        if self.system in specifications['build_specifications'][self.backend]:
+                            if self.distro in specifications['build_specifications'][self.backend][self.system]:
                                 self.add_node(Node(name.name, tag.name, tag.absolute(),
-                                                   spec['build_specs'][self.backend][self.system][self.distro], spec))
+                                                   specifications['build_specifications']
+                                                   [self.backend][self.system][self.distro], specifications))
 
         # add dependency edges to graph
         for node in self.nodes:
-            if 'dependencies' in node.build_spec:
-                for dependency in node.build_spec['dependencies']:
+            if 'dependencies' in node.build_specifications:
+                for dependency in node.build_specifications['dependencies']:
                     if dependency is None:
                         raise InvalidDependencySpecification(dependency, node.name, node.tag,
-                                                             Path.joinpath(node.path, 'spec.yaml'))
+                                                             Path.joinpath(node.path, 'specifications.yaml'))
                     else:
                         # split up specification into parts
                         result = re.search(r'^(.*)@(.*)([%^_=])(.*)$', dependency)
 
                         # add the specified edge(s) to the graph
+                        dependency_fulfilled = False
                         if result is not None:
                             if result[3] == '=':
                                 self.add_edge(node, Node(result[1], result[4]))
+                                dependency_fulfilled = True
                             elif result[3] == '^':
                                 for n in self.nodes:
                                     if n >= Node(result[1], result[4]):
                                         self.add_edge(node, n)
+                                        dependency_fulfilled = True
                             elif result[3] == '_':
                                 for n in self.nodes:
                                     if n <= Node(result[1], result[4]):
                                         self.add_edge(node, n)
+                                        dependency_fulfilled = True
                             elif result[3] == '%':
                                 for n in self.nodes:
                                     if Node(result[1], result[2]) <= n <= Node(result[1], result[4]):
                                         self.add_edge(node, n)
+                                        dependency_fulfilled = True
                         else:
                             for n in self.nodes:
                                 if n.similar(Node(dependency, '')):
                                     self.add_edge(node, n)
+                                    dependency_fulfilled = True
+                        # check that the dependency was fulfilled
+                        if not dependency_fulfilled:
+                            raise InvalidDependencySpecification(dependency, node.name, node.tag,
+                                                                 Path.joinpath(node.path, 'specifications.yaml'))
 
     def add_edge(self, u_of_edge: Node, v_of_edge: Node, **attr):
+        # check that edge endpoint are in graph
         if self.has_node(u_of_edge) and self.has_node(v_of_edge):
             super().add_edge(u_of_edge, v_of_edge, **attr)
         else:
             raise InvalidDependencySpecification(f'{v_of_edge.name}@={v_of_edge.tag}',
                                                  u_of_edge.name, u_of_edge.tag,
-                                                 Path.joinpath(u_of_edge.path, 'spec.yaml'))
+                                                 Path.joinpath(u_of_edge.path, 'specifications.yaml'))
 
+        # check that graph is still a DAG
         if not nx.is_directed_acyclic_graph(self):
             cycle = nx.find_cycle(self)
             raise EdgeViolatesDAG(u_of_edge, v_of_edge, cycle)
@@ -232,6 +246,12 @@ class ImageGraph(nx.DiGraph):
         return valid
 
     def create_build_recipe(self, targets: list[Target]) -> tuple:
+
+        # check if all the targets exist
+        for t in targets:
+            if len(self.get_similar_nodes(t.node)) < 1:
+                raise NoAvailableBuild(f"The build target {t.node} does not exist!")
+
         # init build set and priority list
         build_set = set()
         priority_list = list()
