@@ -171,7 +171,7 @@ class Builder:
             ])
 
             args = ' ' + ' '.join(
-                _ for _ in unit.node.build_specifications['args']) if 'args' in unit.node.build_specifications else ''
+                _ for _ in unit.node.build_specifications['arguments']) if 'arguments' in unit.node.build_specifications else ''
             script = f' -f {Path.joinpath(build_sub_dir, f"{unit.build_id}.script")}'
             destination = f' -t {name}'
             end = ' .;'
@@ -193,7 +193,7 @@ class Builder:
             ])
 
             args = ' ' + ' '.join(
-                x for x in unit.node.build_specifications['args']) if 'args' in unit.node.build_specifications else ''
+                x for x in unit.node.build_specifications['arguments']) if 'arguments' in unit.node.build_specifications else ''
             script = f' {Path.joinpath(build_sub_dir, f"{unit.build_id}.script")}'
             destination = f' {name}'
             end = ';'
