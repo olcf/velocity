@@ -27,6 +27,108 @@ def get_permutations(idx: int, sets: list[list]):
     return permutations
 
 
+class Tag:
+
+    def __init__(self, tag_s: str):
+        self.tag = tag_s
+        self.tag_parts = re.split(r'\.|-', tag_s)
+
+    def __eq__(self, other):
+        if isinstance(other, Tag) and self.tag_parts == other.tag_parts:
+            return True
+        else:
+            return False
+
+    def __gt__(self, other):
+        if not isinstance(other, Tag):
+            raise TypeError(f"'>' not supported between instances of "
+                            f"'{type(self).__name__}' and '{type(other).__name__}'")
+        else:
+            comparable_parts = min(len(self.tag_parts), len(other.tag_parts))
+            for idx in range(comparable_parts):
+                if self.tag_parts[idx].isdecimal() and other.tag_parts[idx].isdecimal():
+                    if int(self.tag_parts[idx]) > int(other.tag_parts[idx]):
+                        return True
+                else:
+                    if self.tag_parts[idx] > other.tag_parts[idx]:
+                        return True
+
+            if (self.tag_parts[:comparable_parts] == other.tag_parts[:comparable_parts] and
+                    len(self.tag_parts) > len(other.tag_parts)):
+                return True
+            else:
+                return False
+
+    def __ge__(self, other):
+        if not isinstance(other, Tag):
+            raise TypeError(f"'>=' not supported between instances of "
+                            f"'{type(self).__name__}' and '{type(other).__name__}'")
+        else:
+            comparable_parts = min(len(self.tag_parts), len(other.tag_parts))
+            for idx in range(comparable_parts):
+                if self.tag_parts[idx].isdecimal() and other.tag_parts[idx].isdecimal():
+                    if int(self.tag_parts[idx]) >= int(other.tag_parts[idx]):
+                        return True
+                else:
+                    if self.tag_parts[idx] >= other.tag_parts[idx]:
+                        return True
+
+            if (self.tag_parts[:comparable_parts] == other.tag_parts[:comparable_parts] and
+                    len(self.tag_parts) >= len(other.tag_parts)):
+                return True
+            else:
+                return False
+
+    def __lt__(self, other):
+        if not isinstance(other, Tag):
+            raise TypeError(f"'<' not supported between instances of "
+                            f"'{type(self).__name__}' and '{type(other).__name__}'")
+        else:
+            comparable_parts = min(len(self.tag_parts), len(other.tag_parts))
+            for idx in range(comparable_parts):
+                if self.tag_parts[idx].isdecimal() and other.tag_parts[idx].isdecimal():
+                    if int(self.tag_parts[idx]) < int(other.tag_parts[idx]):
+                        return True
+                else:
+                    if self.tag_parts[idx] < other.tag_parts[idx]:
+                        return True
+
+            if (self.tag_parts[:comparable_parts] == other.tag_parts[:comparable_parts] and
+                    len(self.tag_parts) < len(other.tag_parts)):
+                return True
+            else:
+                return False
+
+    def __le__(self, other):
+        if not isinstance(other, Tag):
+            raise TypeError(f"'<=' not supported between instances of "
+                            f"'{type(self).__name__}' and '{type(other).__name__}'")
+        else:
+            comparable_parts = min(len(self.tag_parts), len(other.tag_parts))
+            for idx in range(comparable_parts):
+                if self.tag_parts[idx].isdecimal() and other.tag_parts[idx].isdecimal():
+                    if int(self.tag_parts[idx]) >= int(other.tag_parts[idx]):
+                        return True
+                else:
+                    if self.tag_parts[idx] >= other.tag_parts[idx]:
+                        return True
+
+            if (self.tag_parts[:comparable_parts] == other.tag_parts[:comparable_parts] and
+                    len(self.tag_parts) >= len(other.tag_parts)):
+                return True
+            else:
+                return False
+
+    def __id__(self):
+        """
+        Alt form of __str__
+        """
+        return self.tag_parts.__str__()
+
+    def __str__(self):
+        return self.tag
+
+
 class Node:
     """
     Node class for an image dependency graph. Uniquely identified by image name,
@@ -36,7 +138,7 @@ class Node:
     def __init__(self, name: str, tag: str, path: Path = None, build_specifications: dict = None,
                  specifications_yaml: dict = None) -> None:
         self.name = name
-        self.tag = tag
+        self.tag = Tag(tag)
         self.path = path
         self.build_specifications = build_specifications
         self.specifications_yaml = specifications_yaml
@@ -101,7 +203,7 @@ class Node:
             return False
 
     def __hash__(self) -> int:
-        return hash(self.name + self.tag)
+        return hash(self.name + self.tag.__id__())
 
     def __str__(self) -> str:
         return f'Node({self.name}, {self.tag})'
@@ -173,12 +275,12 @@ class ImageGraph(nx.DiGraph):
                                 dependency_fulfilled = True
                             elif result[3] == '^':
                                 for n in self.nodes:
-                                    if n >= Node(result[1], result[4]):
+                                    if n.similar(Node(result[1], '')) and n >= Node(result[1], result[4]):
                                         self.add_edge(node, n)
                                         dependency_fulfilled = True
                             elif result[3] == '_':
                                 for n in self.nodes:
-                                    if n <= Node(result[1], result[4]):
+                                    if n.similar(Node(result[1], '')) and n <= Node(result[1], result[4]):
                                         self.add_edge(node, n)
                                         dependency_fulfilled = True
                             elif result[3] == '%':
