@@ -212,6 +212,9 @@ class Builder:
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
             TextBlock(f": IMAGE "),
             TextBlock(f"{name}", fore=Fore.MAGENTA, style=Style.BRIGHT),
+            TextBlock(' ('),
+            TextBlock(f"{unit.node.name}@={unit.node.tag}", fore=Fore.MAGENTA, style=Style.BRIGHT),
+            TextBlock(')'),
             TextBlock(f" BUILT")
         ])
         print()

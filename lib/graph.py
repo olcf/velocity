@@ -9,7 +9,7 @@ from lib.exceptions import EdgeViolatesDAG, InvalidDependencySpecification, NoAv
 def get_permutations(idx: int, sets: list[list]):
     """
     Get all the possible permutations from a list of lists
-    :param idx: iteration level
+    :param idx: recursion level
     :param sets: sets for permutation
     :return: permutations
     """
@@ -57,25 +57,45 @@ class Node:
             return False
 
     def __gt__(self, other) -> bool:
-        if isinstance(other, Node) and self.name == other.name and self.tag > other.tag:
+        if not isinstance(other, Node):
+            raise TypeError(f"'>' not supported between instances of "
+                            f"'{type(self).__name__}' and '{type(other).__name__}'")
+        elif self.name > other.name:
+            return True
+        elif self.name == other.name and self.tag > other.tag:
             return True
         else:
             return False
 
     def __ge__(self, other) -> bool:
-        if isinstance(other, Node) and self.name == other.name and self.tag >= other.tag:
+        if not isinstance(other, Node):
+            raise TypeError(f"'>=' not supported between instances of "
+                            f"'{type(self).__name__}' and '{type(other).__name__}'")
+        elif self.name > other.name:
+            return True
+        elif self.name == other.name and self.tag >= other.tag:
             return True
         else:
             return False
 
     def __lt__(self, other) -> bool:
-        if isinstance(other, Node) and self.name == other.name and self.tag < other.tag:
+        if not isinstance(other, Node):
+            raise TypeError(f"'<' not supported between instances of "
+                            f"'{type(self).__name__}' and '{type(other).__name__}'")
+        elif self.name < other.name:
+            return True
+        elif self.name == other.name and self.tag < other.tag:
             return True
         else:
             return False
 
     def __le__(self, other) -> bool:
-        if isinstance(other, Node) and self.name == other.name and self.tag <= other.tag:
+        if not isinstance(other, Node):
+            raise TypeError(f"'<=' not supported between instances of "
+                            f"'{type(self).__name__}' and '{type(other).__name__}'")
+        elif self.name < other.name:
+            return True
+        elif self.name == other.name and self.tag <= other.tag:
             return True
         else:
             return False
@@ -256,9 +276,9 @@ class ImageGraph(nx.DiGraph):
     def create_build_recipe(self, targets: list[Target]) -> tuple:
 
         # check if all the targets exist
-        for t in targets:
-            if len(self.get_similar_nodes(t.node)) < 1:
-                raise NoAvailableBuild(f"The build target {t.node} does not exist!")
+        for node in targets:
+            if len(self.get_similar_nodes(node.node)) < 1:
+                raise NoAvailableBuild(f"The build target {node.node} does not exist!")
 
         # init build set and priority list
         build_set = set()
@@ -318,14 +338,18 @@ class ImageGraph(nx.DiGraph):
                 # order build
                 build_list = list()
                 processed = set()
-                unprocessed = p
+                unprocessed = p.copy()
                 while len(unprocessed) > 0:
+                    level_holder = list()
                     for node in unprocessed.copy():
                         deps = set(self.get_dependencies(node)).intersection(p)
                         if deps.issubset(processed):
-                            processed.add(node)
-                            unprocessed.remove(node)
-                            build_list.append(node)
+                            level_holder.append(node)
+                    level_holder.sort()
+                    for node in level_holder:
+                        processed.add(node)
+                        unprocessed.remove(node)
+                        build_list.append(node)
 
                 return tuple(build_list)
 
