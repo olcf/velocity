@@ -17,7 +17,7 @@ def run(cmd: str, verbose: bool = False):
     """
     Has ability to capture output but not currently used.
     """
-    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, universal_newlines=True)
+    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     while True:
         output = process.stdout.readline()
         if output == '' and process.poll() is not None:
