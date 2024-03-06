@@ -1,3 +1,4 @@
+import datetime
 import random
 import shutil
 import os
@@ -11,7 +12,7 @@ from lib.exceptions import BackendNotSupported
 from lib.template import parse_template
 
 
-def run(cmd: str):
+def run(cmd: str, verbose: bool = False):
     """
     Has ability to capture output but not currently used.
     """
@@ -20,7 +21,7 @@ def run(cmd: str):
         output = process.stdout.readline()
         if output == '' and process.poll() is not None:
             break
-        elif output != '':
+        elif output != '' and verbose:
             print(output.strip('\n'))
     if process.poll() != 0:
         exit(process.poll())
@@ -36,7 +37,7 @@ class BuildUnit:
 class Builder:
 
     def __init__(self, bt: tuple[Node], backend: str, system: str, distro: str, build_dir: str,
-                 build_name: str = None, dry_run: bool = False, leave_tags: bool = True):
+                 build_name: str = None, dry_run: bool = False, leave_tags: bool = True, verbose: bool = False):
         self.build_units = list()
         self.backend = backend
         self.system = system
@@ -45,6 +46,7 @@ class Builder:
         self.build_name = build_name
         self.dry_run = dry_run
         self.leave_tags = leave_tags
+        self.verbose = verbose
 
         # create build_dir if it does not exist
         self.build_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
@@ -138,37 +140,45 @@ class Builder:
         ])
         # get and update script variables
         script_variables = unit.node.build_specifications['variables'] if 'variables' in unit.node.build_specifications else dict()
+        script_variables.update({'__name__': unit.node.name})
+        script_variables.update({'__tag__': unit.node.tag})
+        script_variables.update({'__system__': self.system})
+        script_variables.update({'__backend__': self.backend})
+        script_variables.update({'__distro__': self.distro})
+        script_variables.update({'__timestamp__': datetime.datetime.now()})
         if src_image is not None:
-            script_variables.update({'image': src_image})
+            script_variables.update({'__image__': src_image})
         # load template
         with open(Path.joinpath(unit.node.path, 'templates', f'{self.distro}.vtmp'), 'r') as in_file:
             script = parse_template(in_file, self.backend, script_variables)
         # write out script
         with open(Path.joinpath(build_sub_dir, f'{unit.build_id}.script'), 'w') as out_file:
             for line in script:
-                sp1print([
-                    TextBlock(line, fore=Fore.CYAN, style=Style.BRIGHT)
-                ])
+                if self.verbose:
+                    sp1print([
+                        TextBlock(line, fore=Fore.CYAN, style=Style.BRIGHT)
+                    ])
                 out_file.writelines(line + '\n')
+
+        # run prolog
+        if 'prolog' in unit.node.build_specifications:
+            p1print([
+                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+                TextBlock(f": RUNNING PROLOG ...")
+            ])
+            if not self.dry_run:
+                prolog = Path.joinpath(build_sub_dir, unit.node.build_specifications['prolog'])
+                prolog.chmod(0o744)
+                run(str(prolog.absolute()), verbose=self.verbose)
+
+        # build
+        p1print([
+            TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+            TextBlock(f": BUILDING ...")
+        ])
 
         # diverge for backend
         if self.backend == 'podman':
-            # run prolog for podman build
-            if 'prolog' in unit.node.build_specifications:
-                p1print([
-                    TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
-                    TextBlock(f": RUNNING PROLOG ...")
-                ])
-                if not self.dry_run:
-                    prolog = Path.joinpath(build_sub_dir, unit.node.build_specifications['prolog'])
-                    prolog.chmod(0o744)
-                    run(str(prolog.absolute()))
-
-            # build
-            p1print([
-                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
-                TextBlock(f": BUILDING ...")
-            ])
 
             args = ' ' + ' '.join(
                 _ for _ in unit.node.build_specifications['arguments']) if 'arguments' in unit.node.build_specifications else ''
@@ -177,20 +187,8 @@ class Builder:
             end = ' .;'
 
             cmd = ['podman build', args, script, destination, end]
-            sp1print([
-                TextBlock(''.join(_ for _ in cmd), fore=Fore.YELLOW, style=Style.BRIGHT)
-            ])
-            if not self.dry_run:
-                run(''.join(_ for _ in cmd))
 
         elif self.backend == 'apptainer':
-            # no prolog needed for apptainer build
-
-            # build
-            p1print([
-                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
-                TextBlock(f": BUILDING ...")
-            ])
 
             args = ' ' + ' '.join(
                 x for x in unit.node.build_specifications['arguments']) if 'arguments' in unit.node.build_specifications else ''
@@ -199,14 +197,15 @@ class Builder:
             end = ';'
 
             cmd = ['apptainer build', args, destination, script, end]
-            sp1print([
-                TextBlock(''.join(_ for _ in cmd), fore=Fore.YELLOW, style=Style.BRIGHT)
-            ])
-            if not self.dry_run:
-                run(''.join(_ for _ in cmd))
 
         else:
             raise BackendNotSupported(self.backend)
+
+        sp1print([
+            TextBlock(''.join(_ for _ in cmd), fore=Fore.YELLOW, style=Style.BRIGHT)
+        ])
+        if not self.dry_run:
+            run(''.join(_ for _ in cmd), verbose=self.verbose)
 
         p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),

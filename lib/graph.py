@@ -33,13 +33,19 @@ class Tag:
         self.tag = tag_s
         self.tag_parts = re.split(r'\.|-', tag_s)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if isinstance(other, Tag) and self.tag_parts == other.tag_parts:
             return True
         else:
             return False
 
-    def __gt__(self, other):
+    def __ne__(self, other) -> bool:
+        if not isinstance(other, Tag) or self.tag_parts != other.tag_parts:
+            return True
+        else:
+            return False
+
+    def __gt__(self, other) -> bool:
         if not isinstance(other, Tag):
             raise TypeError(f"'>' not supported between instances of "
                             f"'{type(self).__name__}' and '{type(other).__name__}'")
@@ -49,17 +55,25 @@ class Tag:
                 if self.tag_parts[idx].isdecimal() and other.tag_parts[idx].isdecimal():
                     if int(self.tag_parts[idx]) > int(other.tag_parts[idx]):
                         return True
+                    elif int(self.tag_parts[idx]) == int(other.tag_parts[idx]):
+                        continue
+                    else:
+                        return False
                 else:
                     if self.tag_parts[idx] > other.tag_parts[idx]:
                         return True
+                    elif self.tag_parts[idx] == other.tag_parts[idx]:
+                        continue
+                    else:
+                        return False
 
-            if (self.tag_parts[:comparable_parts] == other.tag_parts[:comparable_parts] and
-                    len(self.tag_parts) > len(other.tag_parts)):
+            # if we got here it means that their comparable parts are equal, so we compare on length.
+            if len(self.tag_parts) > len(other.tag_parts):
                 return True
             else:
                 return False
 
-    def __ge__(self, other):
+    def __ge__(self, other) -> bool:
         if not isinstance(other, Tag):
             raise TypeError(f"'>=' not supported between instances of "
                             f"'{type(self).__name__}' and '{type(other).__name__}'")
@@ -67,19 +81,27 @@ class Tag:
             comparable_parts = min(len(self.tag_parts), len(other.tag_parts))
             for idx in range(comparable_parts):
                 if self.tag_parts[idx].isdecimal() and other.tag_parts[idx].isdecimal():
-                    if int(self.tag_parts[idx]) >= int(other.tag_parts[idx]):
+                    if int(self.tag_parts[idx]) > int(other.tag_parts[idx]):
                         return True
+                    elif int(self.tag_parts[idx]) == int(other.tag_parts[idx]):
+                        continue
+                    else:
+                        return False
                 else:
-                    if self.tag_parts[idx] >= other.tag_parts[idx]:
+                    if self.tag_parts[idx] > other.tag_parts[idx]:
                         return True
+                    elif self.tag_parts[idx] == other.tag_parts[idx]:
+                        continue
+                    else:
+                        return False
 
-            if (self.tag_parts[:comparable_parts] == other.tag_parts[:comparable_parts] and
-                    len(self.tag_parts) >= len(other.tag_parts)):
+            # if we got here it means that their comparable parts are equal, so we compare on length.
+            if len(self.tag_parts) >= len(other.tag_parts):
                 return True
             else:
                 return False
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         if not isinstance(other, Tag):
             raise TypeError(f"'<' not supported between instances of "
                             f"'{type(self).__name__}' and '{type(other).__name__}'")
@@ -89,17 +111,25 @@ class Tag:
                 if self.tag_parts[idx].isdecimal() and other.tag_parts[idx].isdecimal():
                     if int(self.tag_parts[idx]) < int(other.tag_parts[idx]):
                         return True
+                    elif int(self.tag_parts[idx]) == int(other.tag_parts[idx]):
+                        continue
+                    else:
+                        return False
                 else:
                     if self.tag_parts[idx] < other.tag_parts[idx]:
                         return True
+                    elif self.tag_parts[idx] == other.tag_parts[idx]:
+                        continue
+                    else:
+                        return False
 
-            if (self.tag_parts[:comparable_parts] == other.tag_parts[:comparable_parts] and
-                    len(self.tag_parts) < len(other.tag_parts)):
+            # if we got here it means that their comparable parts are equal, so we compare on length.
+            if len(self.tag_parts) < len(other.tag_parts):
                 return True
             else:
                 return False
 
-    def __le__(self, other):
+    def __le__(self, other) -> bool:
         if not isinstance(other, Tag):
             raise TypeError(f"'<=' not supported between instances of "
                             f"'{type(self).__name__}' and '{type(other).__name__}'")
@@ -107,14 +137,22 @@ class Tag:
             comparable_parts = min(len(self.tag_parts), len(other.tag_parts))
             for idx in range(comparable_parts):
                 if self.tag_parts[idx].isdecimal() and other.tag_parts[idx].isdecimal():
-                    if int(self.tag_parts[idx]) >= int(other.tag_parts[idx]):
+                    if int(self.tag_parts[idx]) < int(other.tag_parts[idx]):
                         return True
+                    elif int(self.tag_parts[idx]) == int(other.tag_parts[idx]):
+                        continue
+                    else:
+                        return False
                 else:
-                    if self.tag_parts[idx] >= other.tag_parts[idx]:
+                    if self.tag_parts[idx] < other.tag_parts[idx]:
                         return True
+                    elif self.tag_parts[idx] == other.tag_parts[idx]:
+                        continue
+                    else:
+                        return False
 
-            if (self.tag_parts[:comparable_parts] == other.tag_parts[:comparable_parts] and
-                    len(self.tag_parts) >= len(other.tag_parts)):
+            # if we got here it means that their comparable parts are equal, so we compare on length.
+            if len(self.tag_parts) <= len(other.tag_parts):
                 return True
             else:
                 return False
@@ -154,6 +192,12 @@ class Node:
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Node) and self.name == other.name and self.tag == other.tag:
+            return True
+        else:
+            return False
+
+    def __ne__(self, other) -> bool:
+        if not isinstance(other, Node) or self.name != other.name or self.tag != other.tag:
             return True
         else:
             return False
