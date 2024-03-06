@@ -6,6 +6,7 @@ import subprocess
 import string
 from pathlib import Path
 from colorama import Fore, Style
+from hashlib import sha256
 from lib.graph import Node
 from lib.print import p1print, sp1print, TextBlock
 from lib.exceptions import BackendNotSupported
@@ -129,7 +130,7 @@ class Builder:
                 else:
                     shutil.copy(entry, Path.joinpath(build_sub_dir, entry.name))
 
-        # parse template and create script
+        # parse template and create script...
         p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
             TextBlock(f": GENERATING SCRIPT ...")
@@ -138,6 +139,7 @@ class Builder:
             TextBlock('SCRIPT: ', fore=Fore.YELLOW, style=Style.BRIGHT),
             TextBlock(f"{Path.joinpath(build_sub_dir, f'{unit.build_id}.script')}", fore=Fore.GREEN)
         ])
+
         # get and update script variables
         script_variables = unit.node.build_specifications['variables'] if 'variables' in unit.node.build_specifications else dict()
         script_variables.update({'__name__': unit.node.name})
@@ -146,8 +148,12 @@ class Builder:
         script_variables.update({'__backend__': self.backend})
         script_variables.update({'__distro__': self.distro})
         script_variables.update({'__timestamp__': datetime.datetime.now()})
+        with open(Path.joinpath(unit.node.path, 'templates', f'{self.distro}.vtmp'), 'r') as in_file:
+            contents = ''.join(x for x in in_file.readlines())
+            script_variables.update({'__hash__': sha256(contents.encode('utf-8')).hexdigest()})
         if src_image is not None:
             script_variables.update({'__image__': src_image})
+
         # load template
         with open(Path.joinpath(unit.node.path, 'templates', f'{self.distro}.vtmp'), 'r') as in_file:
             script = parse_template(in_file, self.backend, script_variables)
