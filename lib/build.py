@@ -23,8 +23,14 @@ def run(cmd: str, verbose: bool = False):
         if output == '' and process.poll() is not None:
             break
         elif output != '' and verbose:
-            print(output.strip('\n'))
+            sp1print([
+                TextBlock(output.strip('\n'), fore=Fore.GREEN, style=Style.DIM)
+            ])
     if process.poll() != 0:
+        for line in process.stderr.readlines():
+            sp1print([
+                TextBlock(line.strip('\n'), fore=Fore.RED, style=Style.BRIGHT)
+            ])
         exit(process.poll())
 
 
@@ -162,7 +168,7 @@ class Builder:
             for line in script:
                 if self.verbose:
                     sp1print([
-                        TextBlock(line, fore=Fore.CYAN, style=Style.BRIGHT)
+                        TextBlock(line, fore=Fore.BLUE, style=Style.DIM)
                     ])
                 out_file.writelines(line + '\n')
 
