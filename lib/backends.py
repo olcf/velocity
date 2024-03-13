@@ -11,7 +11,6 @@ class Backend(ABC):
     def __init__(self, name: str, variables: dict = None) -> None:
         self.name = name
         self.variables = {
-            '': '%',
             '__backend__': self.name
         }
         if variables is not None:
@@ -96,7 +95,7 @@ class Backend(ABC):
             else:
                 raise UndefinedVariableInTemplate(m.group(1))
 
-        return re.sub(r'%(\w*)%', _replace, text)
+        return re.sub(r'(?<!\\)%\((\w*)\)', _replace, text)
 
 
 class Podman(Backend):

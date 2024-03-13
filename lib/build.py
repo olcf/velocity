@@ -137,6 +137,17 @@ class Builder:
                 else:
                     shutil.copy(entry, Path.joinpath(build_sub_dir, entry.name))
 
+        # run prolog
+        if 'prolog' in unit.node.build_specifications:
+            p1print([
+                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+                TextBlock(f": RUNNING PROLOG ...")
+            ])
+            if not self.dry_run:
+                prolog = Path.joinpath(build_sub_dir, unit.node.build_specifications['prolog'])
+                prolog.chmod(0o744)
+                run(str(prolog.absolute()), verbose=self.verbose)
+
         # parse template and create script...
         p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
@@ -168,17 +179,6 @@ class Builder:
                         TextBlock(line, fore=Fore.BLUE, style=Style.DIM)
                     ])
                 out_file.writelines(line + '\n')
-
-        # run prolog
-        if 'prolog' in unit.node.build_specifications:
-            p1print([
-                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
-                TextBlock(f": RUNNING PROLOG ...")
-            ])
-            if not self.dry_run:
-                prolog = Path.joinpath(build_sub_dir, unit.node.build_specifications['prolog'])
-                prolog.chmod(0o744)
-                run(str(prolog.absolute()), verbose=self.verbose)
 
         # build
         p1print([
