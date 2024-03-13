@@ -289,7 +289,7 @@ class ImageGraph(nx.DiGraph):
             raise NotADirectoryError(path)
 
         # add nodes to graph (dependencies are added later once all nodes are in the graph)
-        for name in [x for x in p.iterdir() if x.is_dir()]:
+        for name in [x for x in p.iterdir() if x.is_dir() and x.name[0] != '.']:
             for tag in [x for x in name.iterdir() if x.is_dir()]:
                 with open(Path.joinpath(tag, 'specifications.yaml'), 'r') as file:
                     specifications = yaml.safe_load(file)
