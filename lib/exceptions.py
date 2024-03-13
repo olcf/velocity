@@ -31,3 +31,21 @@ class UndefinedVariableInTemplate(Exception):
 
     def __init__(self, variable):
         super().__init__(f"The variable '{variable}' is undefined!")
+
+
+class RepeatedSection(Exception):
+
+    def __init__(self, section):
+        super().__init__(f"You have more than one '{section}' section in your template!")
+
+
+class LineOutsideOfSection(Exception):
+
+    def __init__(self):
+        super().__init__(f"You have a line outside of a section in your template!")
+
+
+class TemplateSyntaxError(Exception):
+
+    def __init__(self, message, line: str = None):
+        super().__init__(f"{message} {f':line: <{line}>' if line is not None else ''}")

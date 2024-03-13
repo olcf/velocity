@@ -1,3 +1,0 @@
-[submodule "images"]
-	path = images
-	url = gitlab@gitlab.ccs.ornl.gov:saue-software/velocity-images.git

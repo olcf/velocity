@@ -12,7 +12,7 @@ class TextBlock:
 
 def p1print(tb: list[TextBlock]):
     text_blocks = [
-        TextBlock('==> ', fore=Fore.LIGHTGREEN_EX, style=Style.BRIGHT)
+        TextBlock('==> ', fore=Fore.GREEN, style=Style.BRIGHT)
     ]
     text_blocks.extend(tb)
     print_text_blocks(text_blocks)
@@ -20,7 +20,7 @@ def p1print(tb: list[TextBlock]):
 
 def sp1print(tb: list[TextBlock]):
     text_blocks = [
-        TextBlock('\t', fore=Fore.LIGHTGREEN_EX, style=Style.BRIGHT)
+        TextBlock('\t', fore=Fore.GREEN, style=Style.BRIGHT)
     ]
     text_blocks.extend(tb)
     print_text_blocks(text_blocks)

@@ -4,8 +4,8 @@
 %YAML 1.2
 ---
 VERSION: alpha.1  # Major.Minor update this when needed (git commit added on to end for bugfixes)
+SYSTEM: x86_64
 BACKEND: podman
-SYSTEM: summit
 DISTRO: centos
 IMAGE_DIRECTORY: images
 BUILD_DIRECTORY: /tmp/velocity/build

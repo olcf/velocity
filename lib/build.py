@@ -6,11 +6,10 @@ import subprocess
 import string
 from pathlib import Path
 from colorama import Fore, Style
-from hashlib import sha256
 from lib.graph import Node
 from lib.print import p1print, sp1print, TextBlock
 from lib.exceptions import BackendNotSupported
-from lib.template import parse_template
+from lib.backends import get_backend
 
 
 def run(cmd: str, verbose: bool = False):
@@ -54,6 +53,8 @@ class Builder:
         self.dry_run = dry_run
         self.leave_tags = leave_tags
         self.verbose = verbose
+
+        self.backend_engine = get_backend(self.backend, {'__system__': self.system, '__distro__': self.distro})
 
         # create build_dir if it does not exist
         self.build_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
@@ -147,22 +148,18 @@ class Builder:
         ])
 
         # get and update script variables
-        script_variables = unit.node.build_specifications['variables'] if 'variables' in unit.node.build_specifications else dict()
+        script_variables = unit.node.build_specifications['variables'] \
+            if 'variables' in unit.node.build_specifications else dict()
         script_variables.update({'__name__': unit.node.name})
         script_variables.update({'__tag__': unit.node.tag})
-        script_variables.update({'__system__': self.system})
-        script_variables.update({'__backend__': self.backend})
-        script_variables.update({'__distro__': self.distro})
         script_variables.update({'__timestamp__': datetime.datetime.now()})
-        with open(Path.joinpath(unit.node.path, 'templates', f'{self.distro}.vtmp'), 'r') as in_file:
-            contents = ''.join(x for x in in_file.readlines())
-            script_variables.update({'__hash__': sha256(contents.encode('utf-8')).hexdigest()})
         if src_image is not None:
             script_variables.update({'__image__': src_image})
 
-        # load template
-        with open(Path.joinpath(unit.node.path, 'templates', f'{self.distro}.vtmp'), 'r') as in_file:
-            script = parse_template(in_file, self.backend, script_variables)
+        script = self.backend_engine.generate_script(
+            Path.joinpath(unit.node.path, 'templates', f'{self.distro}.vtmp'),
+            script_variables
+        )
         # write out script
         with open(Path.joinpath(build_sub_dir, f'{unit.build_id}.script'), 'w') as out_file:
             for line in script:
@@ -189,35 +186,17 @@ class Builder:
             TextBlock(f": BUILDING ...")
         ])
 
-        # diverge for backend
-        if self.backend == 'podman':
-
-            args = ' ' + ' '.join(
-                _ for _ in unit.node.build_specifications['arguments']) if 'arguments' in unit.node.build_specifications else ''
-            script = f' -f {Path.joinpath(build_sub_dir, f"{unit.build_id}.script")}'
-            destination = f' -t {name}'
-            end = ' .;'
-
-            cmd = ['podman build', args, script, destination, end]
-
-        elif self.backend == 'apptainer':
-
-            args = ' ' + ' '.join(
-                x for x in unit.node.build_specifications['arguments']) if 'arguments' in unit.node.build_specifications else ''
-            script = f' {Path.joinpath(build_sub_dir, f"{unit.build_id}.script")}'
-            destination = f' {name}'
-            end = ';'
-
-            cmd = ['apptainer build', args, destination, script, end]
-
-        else:
-            raise BackendNotSupported(self.backend)
+        build_cmd = self.backend_engine.generate_build_cmd(
+            str(Path.joinpath(build_sub_dir, f"{unit.build_id}.script")),
+            name,
+            unit.node.build_specifications['arguments'] if 'arguments' in unit.node.build_specifications else None
+        )
 
         sp1print([
-            TextBlock(''.join(_ for _ in cmd), fore=Fore.YELLOW, style=Style.BRIGHT)
+            TextBlock(build_cmd, fore=Fore.YELLOW, style=Style.BRIGHT)
         ])
         if not self.dry_run:
-            run(''.join(_ for _ in cmd), verbose=self.verbose)
+            run(build_cmd, verbose=self.verbose)
 
         p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),

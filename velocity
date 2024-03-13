@@ -71,12 +71,12 @@ if __name__ == '__main__':
 
     # print backend, system, distro
     p1print([
-        TextBlock(f"Backend: "),
-        TextBlock(f"{SETTINGS['BACKEND']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
-    ])
-    p1print([
         TextBlock(f"System: "),
         TextBlock(f"{SETTINGS['SYSTEM']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
+    ])
+    p1print([
+        TextBlock(f"Backend: "),
+        TextBlock(f"{SETTINGS['BACKEND']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
     ])
     p1print([
         TextBlock(f"Distro: "),

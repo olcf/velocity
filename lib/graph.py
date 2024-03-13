@@ -293,12 +293,12 @@ class ImageGraph(nx.DiGraph):
             for tag in [x for x in name.iterdir() if x.is_dir()]:
                 with open(Path.joinpath(tag, 'specifications.yaml'), 'r') as file:
                     specifications = yaml.safe_load(file)
-                    if self.backend in specifications['build_specifications']:
-                        if self.system in specifications['build_specifications'][self.backend]:
-                            if self.distro in specifications['build_specifications'][self.backend][self.system]:
+                    if self.system in specifications['build_specifications']:
+                        if self.backend in specifications['build_specifications'][self.system]:
+                            if self.distro in specifications['build_specifications'][self.system][self.backend]:
                                 self.add_node(Node(name.name, tag.name, tag.absolute(),
                                                    specifications['build_specifications']
-                                                   [self.backend][self.system][self.distro], specifications))
+                                                   [self.system][self.backend][self.distro], specifications))
 
         # add dependency edges to graph
         for node in self.nodes:
