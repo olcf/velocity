@@ -90,8 +90,7 @@ class Backend(ABC):
                 Substitute a template variable.
             """
             if m.group(1) in variables:
-                evaluated = str(expandvars(f"{str(variables[m.group(1)])}"))
-                return str(evaluated)
+                return str(variables[m.group(1)])
             else:
                 raise UndefinedVariableInTemplate(m.group(1))
 
