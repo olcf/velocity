@@ -3,7 +3,20 @@ from hashlib import sha256
 from pathlib import Path
 from lib.exceptions import *
 from abc import ABC, abstractmethod
-from os.path import expandvars
+
+
+def _substitute(text: str, variables: dict, regex: str) -> str:
+
+    def _replace(m: re.Match):
+        """
+            Substitute a variables in a string by a regex.
+        """
+        if m.group(1) in variables:
+            return str(variables[m.group(1)])
+        else:
+            raise UndefinedVariableInTemplate(m.group(1))
+
+    return re.sub(regex, _replace, text)
 
 
 class Backend(ABC):
@@ -16,6 +29,7 @@ class Backend(ABC):
         if variables is not None:
             self.variables.update(variables)
         self.template_sections = [
+            '@arg',
             '@from',
             '@copy',
             '@run',
@@ -58,12 +72,19 @@ class Backend(ABC):
         return sections
 
     def _load_template(self, file: Path, variables: dict) -> list:
+        variables.update(self.variables)
         template = list()
         with open(file, 'r') as file:
             contents = file.readlines()
             variables.update({'__hash__': sha256(''.join(contents).encode('utf-8')).hexdigest()})
             for line in contents:
-                sf_con = self._filter_content(self._substitute(line, variables))
+                sf_con = self._filter_content(
+                    _substitute(
+                        line,
+                        variables,
+                        r'(?<!\\)%\((\w*)\)'
+                    )
+                )
                 if sf_con != '':
                     template.append(sf_con)
         return template
@@ -82,20 +103,6 @@ class Backend(ABC):
         else:
             return re.sub(r'\?\w*', '', t).strip(' ')
 
-    def _substitute(self, text: str, variables: dict) -> str:
-        variables.update(self.variables)
-
-        def _replace(m: re.Match):
-            """
-                Substitute a template variable.
-            """
-            if m.group(1) in variables:
-                return str(variables[m.group(1)])
-            else:
-                raise UndefinedVariableInTemplate(m.group(1))
-
-        return re.sub(r'(?<!\\)%\((\w*)\)', _replace, text)
-
 
 class Podman(Backend):
 
@@ -107,6 +114,7 @@ class Podman(Backend):
         template = self._load_template(file, variables)
         sections = self._get_sections(template)
 
+        # @from
         if '@from' not in sections:
             raise TemplateSyntaxError("You must have a '@from' section in your template!")
         elif len(sections['@from']) != 1:
@@ -116,6 +124,22 @@ class Podman(Backend):
         else:
             script.append(f"FROM {sections['@from'][0]}")
 
+        # @arg
+        vbs = dict()
+        if '@arg' in sections:
+            if len(sections['@arg']) > 0:
+                script.append('')
+                for a in sections['@arg']:
+                    if len(a.split()) != 1:
+                        raise TemplateSyntaxError("Arguments cannot have spaces in their names!")
+                    else:
+                        script.append(f'ARG {a}')
+                        vbs[a] = f'${a}'
+        for si in sections.keys():
+            for li in range(len(sections[si])):
+                sections[si][li] = _substitute(sections[si][li], vbs, r'(?<!\\)@\((\w*)\)')
+
+        # @copy
         if '@copy' in sections:
             if len(sections['@copy']) > 0:
                 script.append('')
@@ -202,6 +226,19 @@ class Apptainer(Backend):
         script = list()
         template = self._load_template(file, variables)
         sections = self._get_sections(template)
+
+        if '@arg' in sections:
+            if len(sections['@arg']) > 0:
+                vbs = dict()
+                for a in sections['@arg']:
+                    if len(a.split()) != 1:
+                        raise TemplateSyntaxError("Arguments cannot have spaces in their names!")
+                    else:
+                        vbs[a] = '{{ ' + a + ' }}'
+
+                for si in sections.keys():
+                    for li in range(len(sections[si])):
+                        sections[si][li] = _substitute(sections[si][li], vbs, r'(?<!\\)@\((\w*)\)')
 
         if '@from' not in sections:
             raise TemplateSyntaxError("You must have a '@from' section in your template!")

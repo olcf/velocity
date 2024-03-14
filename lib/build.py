@@ -1,5 +1,6 @@
 import datetime
 import random
+import re
 import shutil
 import os
 import subprocess
@@ -73,10 +74,10 @@ class Builder:
             else:
                 entry.unlink()
 
-        last = None     # last image that was built
+        last = None  # last image that was built
         for u in self.build_units:
             if self.backend == 'podman':
-                if u == self.build_units[-1]:   # if this is the last image
+                if u == self.build_units[-1]:  # if this is the last image
                     name = str(self.build_name if self.build_name is not None else
                                f'{u.node.name}__{u.node.tag}__{self.system}__{self.distro}')
                     if '/' not in name and ':' not in name:
@@ -84,7 +85,7 @@ class Builder:
                 else:
                     name = f'localhost/{u.build_id}:latest'
             elif self.backend == 'apptainer':
-                if u == self.build_units[-1]:   # if this is the last image
+                if u == self.build_units[-1]:  # if this is the last image
                     name = str(Path.joinpath(pwd.absolute(),
                                              self.build_name if self.build_name is not None else
                                              f'{u.node.name}__{u.node.tag}__{self.system}__{self.distro}'))
@@ -126,37 +127,28 @@ class Builder:
 
             for entry in Path.joinpath(unit.node.path, self.system).iterdir():
                 # print copy operation
-                sp1print([
-                    TextBlock('DIR: ' if entry.is_dir() else 'FILE: ', fore=Fore.YELLOW, style=Style.BRIGHT),
-                    TextBlock(f"{entry.absolute()}", fore=Fore.GREEN),
-                    TextBlock(f" -> ", fore=Fore.YELLOW, style=Style.BRIGHT),
-                    TextBlock(f"{Path.joinpath(build_sub_dir, entry.name).absolute()}", fore=Fore.GREEN)
-                ])
+                if self.verbose:
+                    sp1print([
+                        TextBlock('DIR: ' if entry.is_dir() else 'FILE: ', fore=Fore.YELLOW, style=Style.BRIGHT),
+                        TextBlock(f"{entry.absolute()}", fore=Fore.GREEN),
+                        TextBlock(f" -> ", fore=Fore.YELLOW, style=Style.BRIGHT),
+                        TextBlock(f"{Path.joinpath(build_sub_dir, entry.name).absolute()}", fore=Fore.GREEN)
+                    ])
                 if entry.is_dir():
                     shutil.copytree(entry, Path.joinpath(build_sub_dir, entry.name))
                 else:
                     shutil.copy(entry, Path.joinpath(build_sub_dir, entry.name))
-
-        # run prolog
-        if 'prolog' in unit.node.build_specifications:
-            p1print([
-                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
-                TextBlock(f": RUNNING PROLOG ...")
-            ])
-            if not self.dry_run:
-                prolog = Path.joinpath(build_sub_dir, unit.node.build_specifications['prolog'])
-                prolog.chmod(0o744)
-                run(str(prolog.absolute()), verbose=self.verbose)
 
         # parse template and create script...
         p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
             TextBlock(f": GENERATING SCRIPT ...")
         ])
-        sp1print([
-            TextBlock('SCRIPT: ', fore=Fore.YELLOW, style=Style.BRIGHT),
-            TextBlock(f"{Path.joinpath(build_sub_dir, f'{unit.build_id}.script')}", fore=Fore.GREEN)
-        ])
+        if self.verbose:
+            sp1print([
+                TextBlock('SCRIPT: ', fore=Fore.YELLOW, style=Style.BRIGHT),
+                TextBlock(f"{Path.joinpath(build_sub_dir, f'{unit.build_id}.script')}", fore=Fore.GREEN)
+            ])
 
         # get and update script variables
         script_variables = unit.node.build_specifications['variables'] \
@@ -180,23 +172,46 @@ class Builder:
                     ])
                 out_file.writelines(line + '\n')
 
-        # build
-        p1print([
-            TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
-            TextBlock(f": BUILDING ...")
-        ])
-
+        # run prolog & build
         build_cmd = self.backend_engine.generate_build_cmd(
             str(Path.joinpath(build_sub_dir, f"{unit.build_id}.script")),
             name,
             unit.node.build_specifications['arguments'] if 'arguments' in unit.node.build_specifications else None
         )
+        build_file_path = Path.joinpath(build_sub_dir, f"{unit.build_id}.build")
+        build_contents = ['#!/usr/bin/env bash']
 
-        sp1print([
-            TextBlock(build_cmd, fore=Fore.YELLOW, style=Style.BRIGHT)
-        ])
+        if 'prolog' in unit.node.build_specifications:
+            p1print([
+                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+                TextBlock(f": RUNNING PROLOG ... && BUILDING ...")
+            ])
+            with open(Path.joinpath(build_sub_dir, unit.node.build_specifications['prolog']), 'r') as prolog:
+                for line in prolog:
+                    striped = re.sub(r'#.*', '', line)
+                    if not striped.isspace():
+                        build_contents.append(striped.strip('\n'))
+            build_contents.append(build_cmd)
+
+        else:
+            p1print([
+                TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
+                TextBlock(f": BUILDING ...")
+            ])
+            build_contents.append(build_cmd)
+
+        with open(build_file_path, 'w') as build_file:
+            for line in build_contents:
+                build_file.write(line + '\n')
+                if self.verbose:
+                    sp1print([
+                        TextBlock(line, fore=Fore.YELLOW, style=Style.BRIGHT)
+                    ])
+
+        build_file_path.chmod(0o744)
+
         if not self.dry_run:
-            run(build_cmd, verbose=self.verbose)
+            run(str(build_file_path.absolute()), verbose=self.verbose)
 
         p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
