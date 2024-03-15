@@ -29,13 +29,15 @@ class Backend(ABC):
         if variables is not None:
             self.variables.update(variables)
         self.template_sections = [
-            '@arg',
             '@from',
+            '@pre',
+            '@arg',
             '@copy',
             '@run',
             '@env',
             '@label',
-            '@entry'
+            '@entry',
+            '@post'
         ]
 
     @abstractmethod
@@ -253,6 +255,12 @@ class Apptainer(Backend):
                 script.append('Bootstrap: docker')
             script.append(f"From: {sections['@from'][0]}")
 
+        if '@pre' in sections:
+            if len(sections['@pre']) > 0:
+                script.append('')
+                for ln in sections['@pre']:
+                    script.append(ln.lstrip('|'))
+
         if '@copy' in sections:
             if len(sections['@copy']) > 0:
                 script.append('')
@@ -292,6 +300,12 @@ class Apptainer(Backend):
                 script.append('')
                 script.append('%runscript')
                 script.append(f"    {sections['@entry'][0]}")
+
+        if '@post' in sections:
+            if len(sections['@post']) > 0:
+                script.append('')
+                for ln in sections['@post']:
+                    script.append(ln.lstrip('|'))
 
         script.append('')
 
