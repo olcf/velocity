@@ -286,7 +286,7 @@ class ImageGraph(nx.DiGraph):
 
         p = Path(path)
         if not p.is_dir():
-            raise NotADirectoryError(path)
+            raise NotADirectoryError(f"Image path {path} is not a directory!")
 
         # add nodes to graph (dependencies are added later once all nodes are in the graph)
         for name in [x for x in p.iterdir() if x.is_dir() and x.name[0] != '.']:

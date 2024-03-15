@@ -4,10 +4,12 @@ import argparse
 import re
 import subprocess
 import yaml
+import os
+from pathlib import Path
 from colorama import Fore, Style
 from lib.graph import Node, ImageGraph, Target, DepOp
 from lib.build import Builder
-from lib.print import p1print, sp1print, TextBlock, print_text_blocks
+from lib.print import p1print, sp1print, TextBlock, wprint, print_text_blocks
 
 ############################################################
 # Main
@@ -17,10 +19,30 @@ if __name__ == '__main__':
     ############################################################
     # Load settings & Config
     ############################################################
-    with open('settings.yaml', 'r') as file:
-        SETTINGS = yaml.safe_load(file)
-    LATEST_GIT_COMMIT = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode()
-    VERSION = f"{SETTINGS['VERSION']}.{LATEST_GIT_COMMIT}"
+    SETTINGS = dict()
+
+    if os.getenv('VELOCITY_ROOT') is not None:
+        SETTINGS['VELOCITY_ROOT'] = os.getenv('VELOCITY_ROOT')
+    else:
+        wprint([
+            TextBlock("VELOCITY_ROOT not set defaulting to current dir!!!")
+        ])
+        SETTINGS = {'VELOCITY_ROOT': str(Path().absolute())}
+
+    with open(Path.joinpath(Path(SETTINGS['VELOCITY_ROOT']), 'settings.yaml'), 'r') as file:
+        SETTINGS.update(yaml.safe_load(file))
+
+    SETTINGS['LATEST_GIT_COMMIT'] = subprocess.check_output(['cd',
+                                                             f"{SETTINGS['VELOCITY_ROOT']}",
+                                                             '&&'
+                                                             'git',
+                                                             'rev-parse',
+                                                             '--short',
+                                                             'HEAD'], shell=True).decode().strip('\n')
+    SETTINGS['VERSION'] = f"{SETTINGS['VERSION']}.{SETTINGS['LATEST_GIT_COMMIT']}"
+
+    if os.getenv('VELOCITY_IMAGE_DIR') is not None:
+        SETTINGS['VELOCITY_IMAGE_DIR'] = os.getenv('VELOCITY_IMAGE_DIR')
 
     ############################################################
     # Parse Args
@@ -30,7 +52,7 @@ if __name__ == '__main__':
         description='Build tool for OLCF containers',
         epilog='See (https://gitlab.ccs.ornl.gov/saue-software/velocity)')
     parser.add_argument('-v', '--version', action='version',
-                        version=f"%(prog)s {VERSION}", help="program version")
+                        version=f"%(prog)s {SETTINGS['VERSION']}", help="program version")
     parser.add_argument('-b', '--backend', action='store')
     parser.add_argument('-s', '--system', action='store')
     parser.add_argument('-d', '--distro', action='store')
@@ -67,7 +89,12 @@ if __name__ == '__main__':
     ############################################################
     # Load images
     ############################################################
-    imageGraph = ImageGraph(SETTINGS['IMAGE_DIRECTORY'], SETTINGS['BACKEND'], SETTINGS['SYSTEM'], SETTINGS['DISTRO'])
+    imageGraph = ImageGraph(
+        str(Path(SETTINGS['VELOCITY_IMAGE_DIR']).absolute()),
+        SETTINGS['BACKEND'],
+        SETTINGS['SYSTEM'],
+        SETTINGS['DISTRO']
+    )
 
     # print backend, system, distro
     p1print([
