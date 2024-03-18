@@ -2,7 +2,6 @@
 
 import argparse
 import re
-import subprocess
 import yaml
 import os
 from pathlib import Path
@@ -10,6 +9,8 @@ from colorama import Fore, Style
 from lib.graph import Node, ImageGraph, Target, DepOp
 from lib.build import Builder
 from lib.print import p1print, sp1print, TextBlock, wprint, print_text_blocks
+
+VERSION = 'alpha.3.1'
 
 ############################################################
 # Main
@@ -25,24 +26,34 @@ if __name__ == '__main__':
         SETTINGS['VELOCITY_ROOT'] = os.getenv('VELOCITY_ROOT')
     else:
         wprint([
-            TextBlock("VELOCITY_ROOT not set defaulting to current dir!!!")
+            TextBlock("VELOCITY_ROOT not set!")
         ])
-        SETTINGS = {'VELOCITY_ROOT': str(Path().absolute())}
+        exit(1)
 
-    with open(Path.joinpath(Path(SETTINGS['VELOCITY_ROOT']), 'settings.yaml'), 'r') as file:
+    SETTINGS['VERSION'] = VERSION
+
+    try:
+        file = open(Path.joinpath(Path(SETTINGS['VELOCITY_ROOT']), 'settings.yaml'), 'r')
         SETTINGS.update(yaml.safe_load(file))
+        file.close()
+    except FileNotFoundError:
+        wprint([
+            TextBlock("Could not find settings.yaml!")
+        ])
+        exit(1)
 
-    SETTINGS['LATEST_GIT_COMMIT'] = subprocess.check_output(['cd',
-                                                             f"{SETTINGS['VELOCITY_ROOT']}",
-                                                             '&&'
-                                                             'git',
-                                                             'rev-parse',
-                                                             '--short',
-                                                             'HEAD'], shell=True).decode().strip('\n')
-    SETTINGS['VERSION'] = f"{SETTINGS['VERSION']}.{SETTINGS['LATEST_GIT_COMMIT']}"
-
+    # override SETTINGS with ENV
     if os.getenv('VELOCITY_IMAGE_DIR') is not None:
         SETTINGS['VELOCITY_IMAGE_DIR'] = os.getenv('VELOCITY_IMAGE_DIR')
+
+    if os.getenv('VELOCITY_SYSTEM') is not None:
+        SETTINGS['VELOCITY_SYSTEM'] = os.getenv('VELOCITY_SYSTEM')
+
+    if os.getenv('VELOCITY_BACKEND') is not None:
+        SETTINGS['VELOCITY_BACKEND'] = os.getenv('VELOCITY_BACKEND')
+
+    if os.getenv('VELOCITY_BUILD_DIR') is not None:
+        SETTINGS['VELOCITY_BUILD_DIR'] = os.getenv('VELOCITY_BUILD_DIR')
 
     ############################################################
     # Parse Args
@@ -82,34 +93,34 @@ if __name__ == '__main__':
     ############################################################
     # apply user run time arguments over settings
     ############################################################
-    SETTINGS['BACKEND'] = args.backend if args.backend is not None else SETTINGS['BACKEND']
-    SETTINGS['SYSTEM'] = args.system if args.system is not None else SETTINGS['SYSTEM']
-    SETTINGS['DISTRO'] = args.distro if args.distro is not None else SETTINGS['DISTRO']
+    SETTINGS['VELOCITY_SYSTEM'] = args.system if args.system is not None else SETTINGS['VELOCITY_SYSTEM']
+    SETTINGS['VELOCITY_BACKEND'] = args.backend if args.backend is not None else SETTINGS['VELOCITY_BACKEND']
+    SETTINGS['VELOCITY_DISTRO'] = args.distro if args.distro is not None else SETTINGS['VELOCITY_DISTRO']
 
     ############################################################
     # Load images
     ############################################################
     imageGraph = ImageGraph(
         str(Path(SETTINGS['VELOCITY_IMAGE_DIR']).absolute()),
-        SETTINGS['BACKEND'],
-        SETTINGS['SYSTEM'],
-        SETTINGS['DISTRO']
+        SETTINGS['VELOCITY_BACKEND'],
+        SETTINGS['VELOCITY_SYSTEM'],
+        SETTINGS['VELOCITY_DISTRO']
     )
 
     # print backend, system, distro
     p1print([
         TextBlock(f"System: "),
-        TextBlock(f"{SETTINGS['SYSTEM']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
+        TextBlock(f"{SETTINGS['VELOCITY_SYSTEM']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
     ])
     p1print([
         TextBlock(f"Backend: "),
-        TextBlock(f"{SETTINGS['BACKEND']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
+        TextBlock(f"{SETTINGS['VELOCITY_BACKEND']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
     ])
     p1print([
         TextBlock(f"Distro: "),
-        TextBlock(f"{SETTINGS['DISTRO']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
+        TextBlock(f"{SETTINGS['VELOCITY_DISTRO']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
     ])
-    print()     # add newline
+    print()  # add newline
 
     ############################################################
     # Handle User Commands
@@ -143,12 +154,20 @@ if __name__ == '__main__':
             sp1print([
                 TextBlock(f"{r.name}@={r.tag}", fore=Fore.MAGENTA, style=Style.BRIGHT)
             ])
-        print()     # add newline
+        print()  # add newline
 
         # prep builder
-        builder = Builder(recipe, SETTINGS['BACKEND'], SETTINGS['SYSTEM'], SETTINGS['DISTRO'],
-                          build_name=args.name, dry_run=args.dry_run, leave_tags=args.leave_tags,
-                          build_dir=SETTINGS['BUILD_DIRECTORY'], verbose=args.verbose)
+        builder = Builder(
+            recipe,
+            SETTINGS['VELOCITY_BACKEND'],
+            SETTINGS['VELOCITY_SYSTEM'],
+            SETTINGS['VELOCITY_DISTRO'],
+            build_name=args.name,
+            dry_run=args.dry_run,
+            leave_tags=args.leave_tags,
+            build_dir=SETTINGS['BUILD_DIRECTORY'],
+            verbose=args.verbose
+        )
 
         # build
         builder.build()
@@ -214,6 +233,7 @@ if __name__ == '__main__':
             if r not in deps:
                 top_level_entries.add(r)
 
+
         def spec_print(seed: str, indent: int, fdt: dict, rs: tuple[Node]):
             """
             Recursive function to print dep tree
@@ -236,6 +256,7 @@ if __name__ == '__main__':
             if len(fdt[seed]) > 0:
                 for un in fdt[seed]:
                     spec_print(un, (indent + 1), fdt, rs)
+
 
         # print specs
         for tl in top_level_entries:

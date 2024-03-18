@@ -3,9 +3,9 @@
 ############################################################
 %YAML 1.2
 ---
-VERSION: alpha.3  # Major.Minor update this when needed (git commit added on to end for bugfixes)
-SYSTEM: x86_64
-BACKEND: podman
-DISTRO: centos
-VELOCITY_IMAGE_DIR: images
-BUILD_DIRECTORY: /tmp/velocity/build
+VELOCITY_VERSION: alpha.3  # Major.Minor update this when needed (git commit added on to end for bugfixes)
+VELOCITY_SYSTEM: x86_64
+VELOCITY_BACKEND: podman
+VELOCITY_DISTRO: centos
+VELOCITY_BUILD_DIR: /tmp/velocity/build
+VELOCITY_IMAGE_DIR: /home/xjv/PycharmProjects/velocity/images

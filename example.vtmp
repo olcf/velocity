@@ -1,0 +1,59 @@
+@from
+    # can only take one of these
+    docker.io/ubuntu:20.04
+    /example.sif # only works for apptainer backend
+    %(__image__)
+
+@pre # same as post but placed right after @from
+    # anything here is taken literally
+    # denote the start of a line with |
+    echo 'Without tab'
+    |    echo 'With tab'
+
+@arg
+    # define arg names
+    example_arg # reference this argument throughout the script with @(<arg>)
+
+@copy
+    # list files to copy, format <src> <dest>
+    /external/file /internal/file
+
+@run
+    # list of commands to run in container
+    echo 'Hello world'
+    ?podman echo 'podman'
+    ?apptainer echo 'apptainer'
+    echo '%(template_variable)'
+    echo '@(example_arg)' # see @arg
+
+@env
+    # set env variables
+    PATH /something:$PATH
+
+@label
+    # set container labels
+    velocity.image.%(__name__)__%(__tag__) %(__hash__)
+
+
+@entry
+    # set entrypoint or %runscript
+    # only one line allowed
+    /bin/bash
+
+@post # same as pre but placed after everything else
+
+
+# info below
+%(<variable>) # variable substitution
+@(<arg>) # argument substitution
+?<backend> # only use this line if it corresponds to the current backend
+
+# velocity variables
+__backend__
+__distro__
+__hash__ # template hash
+__image__ # previous image to build on
+__name__ # current image name e.g. cuda
+__system__
+__tag__ # image "version" e.g. 11.7.1
+__timestamp__
