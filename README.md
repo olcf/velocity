@@ -4,4 +4,4 @@
 Podman container build system.
 
 ## Installation
-Simply run `PATH="$(pwd):$PATH"`
+Simply run the `setup-env.sh` script and set the correct variables.

@@ -1,8 +1,10 @@
+# Example vtmp file
+
 @from
     # can only take one of these
     docker.io/ubuntu:20.04
     /example.sif # only works for apptainer backend
-    %(__image__)
+    %(__base__)
 
 @pre # same as post but placed right after @from
     # anything here is taken literally
@@ -52,7 +54,7 @@
 __backend__
 __distro__
 __hash__ # template hash
-__image__ # previous image to build on
+__base__ # previous image to build on
 __name__ # current image name e.g. cuda
 __system__
 __tag__ # image "version" e.g. 11.7.1

@@ -165,7 +165,7 @@ if __name__ == '__main__':
             build_name=args.name,
             dry_run=args.dry_run,
             leave_tags=args.leave_tags,
-            build_dir=SETTINGS['BUILD_DIRECTORY'],
+            build_dir=SETTINGS['VELOCITY_BUILD_DIR'],
             verbose=args.verbose
         )
 

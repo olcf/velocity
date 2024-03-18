@@ -157,7 +157,7 @@ class Builder:
         script_variables.update({'__tag__': unit.node.tag})
         script_variables.update({'__timestamp__': datetime.datetime.now()})
         if src_image is not None:
-            script_variables.update({'__image__': src_image})
+            script_variables.update({'__base__': src_image})
 
         script = self.backend_engine.generate_script(
             Path.joinpath(unit.node.path, 'templates', f'{self.distro}.vtmp'),
