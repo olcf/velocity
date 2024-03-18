@@ -480,15 +480,29 @@ class ImageGraph(nx.DiGraph):
 
         # return valid build tuple
         for p in permutations:
-            if self._is_valid_build_tuple(tuple(p)):
+
+            # clean up permutation
+            clean_p = set()
+            for n in p:
+                for t in targets:
+                    con_targ = None
+                    for nt in [x for x in p]:
+                        if nt.similar(t.node):
+                            con_targ = nt
+                            break
+                    if self.is_above(con_targ, n):
+                        clean_p.add(n)
+                        break
+
+            if self._is_valid_build_tuple(tuple(clean_p)):
                 # order build
                 build_list = list()
                 processed = set()
-                unprocessed = p.copy()
+                unprocessed = clean_p.copy()
                 while len(unprocessed) > 0:
                     level_holder = list()
                     for node in unprocessed.copy():
-                        deps = set(self.get_dependencies(node)).intersection(p)
+                        deps = set(self.get_dependencies(node)).intersection(clean_p)
                         if deps.issubset(processed):
                             level_holder.append(node)
                     level_holder.sort()

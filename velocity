@@ -2,7 +2,6 @@
 
 import argparse
 import re
-import yaml
 import os
 from pathlib import Path
 from colorama import Fore, Style
@@ -18,42 +17,51 @@ VERSION = 'alpha.3.1'
 if __name__ == '__main__':
 
     ############################################################
-    # Load settings & Config
+    # Load Config
     ############################################################
     SETTINGS = dict()
 
-    if os.getenv('VELOCITY_ROOT') is not None:
-        SETTINGS['VELOCITY_ROOT'] = os.getenv('VELOCITY_ROOT')
+    if os.getenv('VELOCITY_IMAGE_DIR') is not None:
+        SETTINGS['VELOCITY_IMAGE_DIR'] = os.getenv('VELOCITY_IMAGE_DIR')
     else:
         wprint([
-            TextBlock("VELOCITY_ROOT not set!")
+            TextBlock("VELOCITY_IMAGE_DIR not set!")
+        ])
+        exit(1)
+
+    if os.getenv('VELOCITY_SYSTEM') is not None:
+        SETTINGS['VELOCITY_SYSTEM'] = os.getenv('VELOCITY_SYSTEM')
+    else:
+        wprint([
+            TextBlock("VELOCITY_SYSTEM not set!")
+        ])
+        exit(1)
+
+    if os.getenv('VELOCITY_BACKEND') is not None:
+        SETTINGS['VELOCITY_BACKEND'] = os.getenv('VELOCITY_BACKEND')
+    else:
+        wprint([
+            TextBlock("VELOCITY_BACKEND not set!")
+        ])
+        exit(1)
+
+    if os.getenv('VELOCITY_DISTRO') is not None:
+        SETTINGS['VELOCITY_DISTRO'] = os.getenv('VELOCITY_DISTRO')
+    else:
+        wprint([
+            TextBlock("VELOCITY_DISTRO not set!")
+        ])
+        exit(1)
+
+    if os.getenv('VELOCITY_BUILD_DIR') is not None:
+        SETTINGS['VELOCITY_BUILD_DIR'] = os.getenv('VELOCITY_BUILD_DIR')
+    else:
+        wprint([
+            TextBlock("VELOCITY_BUILD_DIR not set!")
         ])
         exit(1)
 
     SETTINGS['VERSION'] = VERSION
-
-    try:
-        file = open(Path.joinpath(Path(SETTINGS['VELOCITY_ROOT']), 'settings.yaml'), 'r')
-        SETTINGS.update(yaml.safe_load(file))
-        file.close()
-    except FileNotFoundError:
-        wprint([
-            TextBlock("Could not find settings.yaml!")
-        ])
-        exit(1)
-
-    # override SETTINGS with ENV
-    if os.getenv('VELOCITY_IMAGE_DIR') is not None:
-        SETTINGS['VELOCITY_IMAGE_DIR'] = os.getenv('VELOCITY_IMAGE_DIR')
-
-    if os.getenv('VELOCITY_SYSTEM') is not None:
-        SETTINGS['VELOCITY_SYSTEM'] = os.getenv('VELOCITY_SYSTEM')
-
-    if os.getenv('VELOCITY_BACKEND') is not None:
-        SETTINGS['VELOCITY_BACKEND'] = os.getenv('VELOCITY_BACKEND')
-
-    if os.getenv('VELOCITY_BUILD_DIR') is not None:
-        SETTINGS['VELOCITY_BUILD_DIR'] = os.getenv('VELOCITY_BUILD_DIR')
 
     ############################################################
     # Parse Args

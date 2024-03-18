@@ -1,15 +1,5 @@
 #!/usr/bin/env bash
 
-# VELOCITY_ROOT (& PATH)
-echo
-read -rp "Set VELOCITY_ROOT [$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )]: " VELOCITY_ROOT
-if [[ -z $VELOCITY_ROOT ]]; then
-  VELOCITY_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-fi
-echo "VELOCITY_ROOT=$VELOCITY_ROOT"
-export VELOCITY_ROOT
-export PATH=$VELOCITY_ROOT:$PATH
-
 # VELOCITY_IMAGE_DIR
 echo
 read -rp "Set VELOCITY_IMAGE_DIR [$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/images]: " VELOCITY_IMAGE_DIR
@@ -51,6 +41,25 @@ select VELOCITY_BACKEND in podman apptainer; do
 done
 echo "VELOCITY_BACKEND=$VELOCITY_BACKEND"
 export VELOCITY_BACKEND
+
+# VELOCITY_DISTRO
+echo
+echo "Select VELOCITY_DISTRO: "
+select VELOCITY_DISTRO in centos ubuntu; do
+    case $VELOCITY_DISTRO in
+      centos)
+        break
+        ;;
+      ubuntu)
+        break
+        ;;
+      *)
+        continue
+        ;;
+    esac
+done
+echo "VELOCITY_DISTRO=$VELOCITY_DISTRO"
+export VELOCITY_DISTRO
 
 # VELOCITY_BUILD_DIR
 echo
