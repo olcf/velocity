@@ -9,7 +9,7 @@
 @pre # same as post but placed right after @from
     # anything here is taken literally
     # denote the start of a line with |
-    echo 'Without tab'
+    |echo 'Without tab'
     |    echo 'With tab'
 
 @arg
@@ -25,8 +25,8 @@
     echo 'Hello world'
     ?podman echo 'podman'
     ?apptainer echo 'apptainer'
-    echo '%(template_variable)'
-    echo '@(example_arg)' # see @arg
+    echo %(template_variable)
+    echo @(example_arg) # see @arg
 
 @env
     # set env variables

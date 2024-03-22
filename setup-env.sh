@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# VELOCITY_ROOT (& PATH)
+echo
+VELOCITY_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo "VELOCITY_ROOT=$VELOCITY_ROOT"
+export VELOCITY_ROOT
+export PATH=$VELOCITY_ROOT:$PATH
+
 # VELOCITY_IMAGE_DIR
 echo
 read -rp "Set VELOCITY_IMAGE_DIR [$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/images]: " VELOCITY_IMAGE_DIR
