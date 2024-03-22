@@ -3,6 +3,7 @@
 import argparse
 import re
 import os
+import editor
 from pathlib import Path
 from colorama import Fore, Style
 from lib.graph import Node, ImageGraph, Target, DepOp
@@ -94,6 +95,11 @@ if __name__ == '__main__':
     # create spec_parser
     spec_parser = sub_parsers.add_parser('spec', help="lookup image dependencies")
     spec_parser.add_argument('targets', type=str, nargs='+', help='spec targets')
+
+    # create edit_parser
+    edit_parser = sub_parsers.add_parser('edit', help="edit image files")
+    edit_parser.add_argument('target', help='image to edit')
+    edit_parser.add_argument('-s', '--specification', action='store_true', help="edit the specifications file")
 
     # parse args
     args = parser.parse_args()
@@ -270,6 +276,38 @@ if __name__ == '__main__':
         for tl in top_level_entries:
             spec_print(tl.name, 0, flat_dep_tree, recipe)
         print()  # add newline
+
+    elif args.subcommand == 'edit':
+
+        name = None
+        tag = None
+        result = re.search(r'^(.*)@=(.*)$', args.target)
+        if result:
+            name = Path(SETTINGS['VELOCITY_IMAGE_DIR']).joinpath(result[1])
+            tag = Path.joinpath(name, result[2])
+        else:
+            name = Path(SETTINGS['VELOCITY_IMAGE_DIR']).joinpath(args.target)
+
+        if name.is_dir():
+            if tag is None:
+                tags = list(name.iterdir())
+                tags.sort()
+                tag = Path.joinpath(name, tags[-1])
+
+            if tag.is_dir():
+                if args.specification:
+                    file = Path.joinpath(tag, 'specifications.yaml')
+                else:
+                    file = Path.joinpath(tag, 'templates', f"{SETTINGS['VELOCITY_DISTRO']}.vtmp")
+
+                if file.is_file():
+                    editor.edit(file)
+                else:
+                    raise FileNotFoundError(file)
+            else:
+                raise NotADirectoryError(tag)
+        else:
+            raise NotADirectoryError(name)
 
     else:
         parser.print_help()
