@@ -34,7 +34,7 @@ def run(cmd: str, log_file: Path = None, verbose: bool = False):
     """
 
     # open log file (set to False if none is provided)
-    file = open(log_file, 'w', buffering=0) if log_file is not None else False
+    file = open(log_file, 'w') if log_file is not None else False
 
     log = SimpleQueue()
     stdout = SimpleQueue()
@@ -62,6 +62,7 @@ def run(cmd: str, log_file: Path = None, verbose: bool = False):
             ])
         if not log.empty() and file:
             file.write(log.get() + '\n')
+            file.flush()
 
     out.join()
     err.join()
@@ -76,6 +77,7 @@ def run(cmd: str, log_file: Path = None, verbose: bool = False):
     if file:
         while not log.empty():
             file.write(log.get() + '\n')
+            file.flush()
         file.close()
 
     # if an error was encountered exit with the subprocess exit code
