@@ -4,6 +4,7 @@ import re
 import shutil
 import os
 import string
+from timeit import default_timer as timer
 from subprocess import Popen, PIPE
 from queue import SimpleQueue
 from threading import Thread
@@ -170,6 +171,8 @@ class Builder:
             TextBlock(f"{' --DRY-RUN' if self.dry_run else ''} ...")
         ])
 
+        start = timer()
+
         # create build dir and go to it
         build_sub_dir = Path.joinpath(self.build_dir, unit.build_id)
         build_sub_dir.mkdir(mode=0o744)
@@ -270,13 +273,16 @@ class Builder:
         if not self.dry_run:
             run(str(build_file_path.absolute()), log_file=Path.joinpath(build_sub_dir, 'log'), verbose=self.verbose)
 
+        end = timer()
+
         p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
             TextBlock(f": IMAGE "),
             TextBlock(f"{name}", fore=Fore.MAGENTA, style=Style.BRIGHT),
             TextBlock(' ('),
             TextBlock(f"{unit.node.name}@={unit.node.tag}", fore=Fore.MAGENTA, style=Style.BRIGHT),
-            TextBlock(')'),
-            TextBlock(f" BUILT")
+            TextBlock(f") BUILT ["),
+            TextBlock(f"{datetime.timedelta(seconds=round(end - start))}", fore=Fore.MAGENTA, style=Style.BRIGHT),
+            TextBlock(']')
         ])
-        print()
+        print()     # new line
