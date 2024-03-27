@@ -3,8 +3,10 @@ import random
 import re
 import shutil
 import os
-import subprocess
 import string
+from subprocess import Popen, PIPE
+from queue import SimpleQueue
+from threading import Thread
 from pathlib import Path
 from colorama import Fore, Style
 from lib.graph import Node
@@ -13,24 +15,77 @@ from lib.exceptions import BackendNotSupported
 from lib.backends import get_backend
 
 
-def run(cmd: str, verbose: bool = False):
+def read_pipe(pipe: PIPE, topic: SimpleQueue, prefix: str, log: SimpleQueue) -> None:
     """
-    Has ability to capture output but not currently used.
+        Read a subprocess PIPE and place lines on topic queue and log queue
     """
-    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     while True:
-        output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
+        ln = pipe.readline()
+        if ln == '':
             break
-        elif output != '' and verbose:
+        else:
+            topic.put(ln.strip('\n'))
+            log.put("{} {}".format(prefix, ln.strip('\n')))
+
+
+def run(cmd: str, log_file: Path = None, verbose: bool = False):
+    """
+        Run a system command logging all output and print if verbose.
+    """
+
+    # open log file (set to False if none is provided)
+    file = open(log_file, 'w', buffering=0) if log_file is not None else False
+
+    log = SimpleQueue()
+    stdout = SimpleQueue()
+    stderr = SimpleQueue()
+
+    process = Popen(
+        cmd,
+        shell=True,
+        stdout=PIPE,
+        stderr=PIPE,
+        universal_newlines=True
+    )
+
+    out = Thread(target=read_pipe, args=(process.stdout, stdout, 'STDOUT:', log))
+    err = Thread(target=read_pipe, args=(process.stderr, stderr, 'STDERR:', log))
+
+    out.start()
+    err.start()
+
+    # loop for real time output
+    while process.poll() is None:
+        if not stdout.empty() and verbose:
             sp1print([
-                TextBlock(output.strip('\n'), fore=Fore.GREEN, style=Style.DIM)
+                TextBlock(stdout.get(), fore=Fore.GREEN, style=Style.DIM)
             ])
+        if not log.empty() and file:
+            file.write(log.get() + '\n')
+
+    out.join()
+    err.join()
+
+    # clear stdout & log
+    if verbose:
+        while not stdout.empty():
+            sp1print([
+                TextBlock(stdout.get(), fore=Fore.GREEN, style=Style.DIM)
+            ])
+
+    if file:
+        while not log.empty():
+            file.write(log.get() + '\n')
+        file.close()
+
+    # if an error was encountered exit with the subprocess exit code
     if process.poll() != 0:
-        for line in process.stderr.readlines():
-            sp1print([
-                TextBlock(line.strip('\n'), fore=Fore.RED, style=Style.BRIGHT)
-            ])
+        while stderr.qsize():
+            ln = stderr.get()
+            if verbose:
+                sp1print([
+                    TextBlock(ln, fore=Fore.RED, style=Style.DIM)
+                ])
         exit(process.poll())
 
 
@@ -147,7 +202,7 @@ class Builder:
         if self.verbose:
             sp1print([
                 TextBlock('SCRIPT: ', fore=Fore.YELLOW, style=Style.BRIGHT),
-                TextBlock(f"{Path.joinpath(build_sub_dir, f'{unit.build_id}.script')}", fore=Fore.GREEN)
+                TextBlock(f"{Path.joinpath(build_sub_dir, 'script')}", fore=Fore.GREEN)
             ])
 
         # get and update script variables
@@ -164,7 +219,7 @@ class Builder:
             script_variables
         )
         # write out script
-        with open(Path.joinpath(build_sub_dir, f'{unit.build_id}.script'), 'w') as out_file:
+        with open(Path.joinpath(build_sub_dir, 'script'), 'w') as out_file:
             for line in script:
                 if self.verbose:
                     sp1print([
@@ -174,11 +229,11 @@ class Builder:
 
         # run prolog & build
         build_cmd = self.backend_engine.generate_build_cmd(
-            str(Path.joinpath(build_sub_dir, f"{unit.build_id}.script")),
+            str(Path.joinpath(build_sub_dir, 'script')),
             name,
             unit.node.build_specifications['arguments'] if 'arguments' in unit.node.build_specifications else None
         )
-        build_file_path = Path.joinpath(build_sub_dir, f"{unit.build_id}.build")
+        build_file_path = Path.joinpath(build_sub_dir, 'build')
         build_contents = ['#!/usr/bin/env bash']
 
         if 'prolog' in unit.node.build_specifications:
@@ -211,7 +266,7 @@ class Builder:
         build_file_path.chmod(0o744)
 
         if not self.dry_run:
-            run(str(build_file_path.absolute()), verbose=self.verbose)
+            run(str(build_file_path.absolute()), log_file=Path.joinpath(build_sub_dir, 'log'), verbose=self.verbose)
 
         p1print([
             TextBlock(f"{unit.build_id}", fore=Fore.RED, style=Style.BRIGHT),
