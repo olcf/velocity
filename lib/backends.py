@@ -249,10 +249,12 @@ class Apptainer(Backend):
         elif len(sections['@from'][0].split()) != 1:
             raise TemplateSyntaxError("Your source must be a single string!", sections['@from'][0])
         else:
-            if Path(sections['@from'][0]).is_file():
+            if re.match(r'^.*\.sif$', sections['@from'][0]):    #Path(sections['@from'][0]).is_file():
                 script.append('Bootstrap: localimage')
-            else:
+            elif re.match(r'^.*\/.*:.*$', sections['@from'][0]):
                 script.append('Bootstrap: docker')
+            else:
+                raise TemplateSyntaxError("Unknown source format!", sections['@from'][0])
             script.append(f"From: {sections['@from'][0]}")
 
         if '@pre' in sections:
