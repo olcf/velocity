@@ -293,6 +293,8 @@ class ImageGraph(nx.DiGraph):
             for tag in [x for x in name.iterdir() if x.is_dir()]:
                 with open(Path.joinpath(tag, 'specifications.yaml'), 'r') as file:
                     specifications = yaml.safe_load(file)
+                    if specifications is None:
+                        raise TypeError("Specification can not be None")
                     if self.system in specifications['build_specifications']:
                         if self.backend in specifications['build_specifications'][self.system]:
                             if self.distro in specifications['build_specifications'][self.system][self.backend]:

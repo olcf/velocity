@@ -29,7 +29,7 @@ def read_pipe(pipe: PIPE, topic: SimpleQueue, prefix: str, log: SimpleQueue) -> 
             log.put("{} {}".format(prefix, ln.strip('\n')))
 
 
-def run(cmd: str, log_file: Path = None, verbose: bool = False):
+def run(cmd: str, log_file: Path = None, verbose: bool = False) -> None:
     """
         Run a system command logging all output and print if verbose.
     """
