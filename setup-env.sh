@@ -52,12 +52,18 @@ export VELOCITY_BACKEND
 # VELOCITY_DISTRO
 echo
 echo "Select VELOCITY_DISTRO: "
-select VELOCITY_DISTRO in centos ubuntu; do
+select VELOCITY_DISTRO in centos ubuntu opensuse fedora; do
     case $VELOCITY_DISTRO in
       centos)
         break
         ;;
       ubuntu)
+        break
+        ;;
+      opensuse)
+        break
+        ;;
+      fedora)
         break
         ;;
       *)
