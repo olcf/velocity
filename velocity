@@ -10,7 +10,7 @@ from lib.graph import Node, ImageGraph, Target, DepOp
 from lib.build import Builder
 from lib.print import p1print, sp1print, TextBlock, wprint, print_text_blocks
 
-VERSION = 'alpha.3.1'
+VERSION = 'beta.0.0'
 
 ############################################################
 # Main
