@@ -101,6 +101,11 @@ if __name__ == '__main__':
     edit_parser.add_argument('target', help='image to edit')
     edit_parser.add_argument('-s', '--specification', action='store_true', help="edit the specifications file")
 
+    # create create_parser
+    edit_parser = sub_parsers.add_parser('create', help="create a new image with default template")
+    edit_parser.add_argument('name', help='name of image to create')
+    edit_parser.add_argument('version', help='version of image to create')
+
     # parse args
     args = parser.parse_args()
 
@@ -308,6 +313,27 @@ if __name__ == '__main__':
                 raise NotADirectoryError(tag)
         else:
             raise NotADirectoryError(name)
+    
+    elif args.subcommand == 'create':
+        image_dir = Path(SETTINGS['VELOCITY_IMAGE_DIR']).joinpath(args.name, args.version)
+        if image_dir.is_dir():
+            raise FileExistsError(f"'{image_dir}' already exist!")
+        os.mkdir(image_dir)
+        os.mkdir(image_dir.joinpath('templates'))
+        with open(image_dir.joinpath('specifications.yaml'), 'w') as spec_file:
+            spec_file.write('---\n')
+            spec_file.write('\n')
+            spec_file.write('build_specifications:\n')
+            spec_file.write(f"  {SETTINGS['VELOCITY_SYSTEM']}:\n")
+            spec_file.write(f"    {SETTINGS['VELOCITY_BACKEND']}:\n")
+            spec_file.write(f"      {SETTINGS['VELOCITY_DISTRO']}: {{}}\n")
+        with open(image_dir.joinpath('templates', f"{SETTINGS['VELOCITY_DISTRO']}.vtmp"), 'x') as temp_file:
+            temp_file.write('\n')
+            temp_file.write('@from\n')
+            temp_file.write('    %(__base__)\n')
+            temp_file.write('\n')
+            temp_file.write('@label\n')
+            temp_file.write('    velocity.image.%(__name__)__%(__tag__) %(__hash__)\n')
 
     else:
         parser.print_help()
