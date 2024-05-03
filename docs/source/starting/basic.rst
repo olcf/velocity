@@ -36,11 +36,15 @@ velocity script needs to run.
 Installation
 ############
 
-First you will need to set up a python virtual environment for Velocity and install the following packages:
+First you will need to set up a conda environment for Velocity and install the following packages:
+
+.. note::
+
+    For more info on creating a custom conda environment on OLCF systems visit https://docs.olcf.ornl.gov/software/python/index.html#custom-environments.
 
 .. code-block::
 
-    pyyaml networkx colorama editor loguru
+    conda install pyyaml networkx colorama python-editor
 
 .. important::
 
