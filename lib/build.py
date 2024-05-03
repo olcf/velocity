@@ -216,6 +216,7 @@ class Builder:
         script_variables.update({'__name__': unit.node.name})
         script_variables.update({'__tag__': unit.node.tag})
         script_variables.update({'__timestamp__': datetime.datetime.now()})
+        script_variables.update({'__threads__': int(os.cpu_count() * 0.75) if int(os.cpu_count() * 0.75) < 16 else 16})
         if src_image is not None:
             script_variables.update({'__base__': src_image})
 
