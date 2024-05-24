@@ -42,10 +42,24 @@ class Backend(ABC):
 
     @abstractmethod
     def generate_script(self, file: Path, variables: dict) -> list:
+        """
+        Generate a build script e.g. .dockerfile/.def
+        """
         pass
 
     @abstractmethod
     def generate_build_cmd(self, src: str, dest: str, args: list = None) -> str:
+        """
+        Generate CLI command to build image
+        """
+        pass
+
+    @abstractmethod
+    def format_image_name(self, path: Path, tag: str) -> str:
+        pass
+
+    @abstractmethod
+    def clean_up_old_image_cmd(self, name: str) -> str:
         pass
 
     def _get_sections(self, template: list) -> dict:
@@ -218,6 +232,12 @@ class Podman(Backend):
         cmd = ['podman build', arguments, script, destination, end]
         return ''.join(_ for _ in cmd)
 
+    def format_image_name(self, path: Path, tag: str) -> str:
+        return f"{'localhost/' if '/' not in tag else ''}{tag}{':latest' if ':' not in tag else ''}"
+
+    def clean_up_old_image_cmd(self, name: str) -> str:
+        return f'podman untag {name}'
+
 
 class Apptainer(Backend):
 
@@ -323,6 +343,12 @@ class Apptainer(Backend):
 
         cmd = ['apptainer build', arguments, destination, script, end]
         return ''.join(_ for _ in cmd)
+
+    def format_image_name(self, path: Path, tag: str) -> str:
+        return f"{Path.joinpath(path, tag)}{'.sif' if '.sif' not in tag else ''}"
+
+    def clean_up_old_image_cmd(self, name: str) -> str:
+        return 'echo'
 
 
 def get_backend(name: str, variables: dict) -> Backend:

@@ -16,7 +16,7 @@ syn match codeBrackets ')'
 syn match variableOperator '%'
 
 " velocity variables
-syn keyword velocityVariable __backend__ __base__ __distro__ __hash__ __name__ __system__ __tag__ __timestamp__
+syn keyword velocityVariable __backend__ __base__ __distro__ __hash__ __name__ __system__ __tag__ __timestamp__ __threads__
 
 " velocity operatives
 syn match velocityOperative '@'

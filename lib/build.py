@@ -134,29 +134,19 @@ class Builder:
 
         last = None  # last image that was built
         for u in self.build_units:
-            if self.backend == 'podman':
-                if u == self.build_units[-1]:  # if this is the last image
-                    name = str(self.build_name if self.build_name is not None else
-                               f'{u.node.name}__{u.node.tag}__{self.system}__{self.distro}')
-                    if '/' not in name and ':' not in name:
-                        name = f'localhost/{name}:latest'
-                else:
-                    name = f'localhost/{u.build_id}:latest'
-            elif self.backend == 'apptainer':
-                if u == self.build_units[-1]:  # if this is the last image
-                    name = str(Path.joinpath(pwd.absolute(),
-                                             self.build_name if self.build_name is not None else
-                                             f'{u.node.name}__{u.node.tag}__{self.system}__{self.distro}'))
-                    if '.sif' not in name:
-                        name += '.sif'
-                else:
-                    name = str(Path.joinpath(self.build_dir, u.build_id, f'{u.build_id}.sif'))
+
+            if u == self.build_units[-1]:
+                sorted_specs = [(bu.node.name, bu.node.tag) for bu in self.build_units]
+                sorted_specs.sort()
+                tag = str(self.build_name if self.build_name is not None else
+                          f"{'_'.join(f'{bu[0]}-{bu[1]}' for bu in sorted_specs)}__{self.system}-{self.distro}")
+                name = self.backend_engine.format_image_name(Path(pwd.absolute()), tag)
             else:
-                raise BackendNotSupported
+                name = self.backend_engine.format_image_name(Path.joinpath(self.build_dir, u.build_id), u.build_id)
 
             self._build_image(u, last, name)
-            if self.backend == 'podman' and not self.dry_run and not self.leave_tags and last is not None:
-                run(f'podman untag {last}')
+            if not self.dry_run and not self.leave_tags and last is not None:
+                run(self.backend_engine.clean_up_old_image_cmd(last))
             last = name
 
         # go back to the starting dir
@@ -286,4 +276,4 @@ class Builder:
             TextBlock(f"{datetime.timedelta(seconds=round(end - start))}", fore=Fore.MAGENTA, style=Style.BRIGHT),
             TextBlock(']')
         ])
-        print()     # new line
+        print()  # new line
