@@ -9,9 +9,9 @@ export PATH=$VELOCITY_ROOT:$PATH
 
 # VELOCITY_IMAGE_DIR
 echo
-read -rp "Set VELOCITY_IMAGE_DIR [$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/images]: " VELOCITY_IMAGE_DIR
+read -rp "Set VELOCITY_IMAGE_DIR [$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )-images]: " VELOCITY_IMAGE_DIR
 if [[ -z $VELOCITY_IMAGE_DIR ]]; then
-  VELOCITY_IMAGE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/images"
+  VELOCITY_IMAGE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )-images"
 fi
 echo "VELOCITY_IMAGE_DIR=$VELOCITY_IMAGE_DIR"
 export VELOCITY_IMAGE_DIR
