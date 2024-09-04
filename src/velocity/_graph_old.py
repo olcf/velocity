@@ -3,7 +3,7 @@ import yaml
 import networkx as nx
 from enum import Enum
 from pathlib import Path
-from lib.exceptions import EdgeViolatesDAG, InvalidDependencySpecification, NoAvailableBuild
+from ._exceptions import EdgeViolatesDAG, InvalidDependencySpecification, NoAvailableBuild
 
 
 def get_permutations(idx: int, sets: list[list]):

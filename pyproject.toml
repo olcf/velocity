@@ -1,0 +1,23 @@
+[build-system]
+requires = [ "setuptools>=61.0" ]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "velocity"
+dynamic = [ "version" ]
+authors = [
+    { name="Asa"}
+]
+description = "A container build manager"
+readme = "README.md"
+dependencies = [
+    "pyyaml",
+    "networkx",
+    "colorama",
+    "editor",
+    "loguru"
+]
+
+[project.urls]
+Homepage = "https://github.com/olcf/velocity"
+Issues = "https://github.com/olcf/velocity/issues"

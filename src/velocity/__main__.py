@@ -1,16 +1,14 @@
-#!/usr/bin/env python3
-
 import argparse
 import re
 import os
 import editor
 from pathlib import Path
 from colorama import Fore, Style
-from lib.graph import Node, ImageGraph, Target, DepOp
-from lib.build import Builder
-from lib.print import p1print, sp1print, TextBlock, wprint, print_text_blocks
+from ._graph import ImageRepo, Target, DepOp
+from ._build import Builder
+from ._print import p1print, sp1print, TextBlock, wprint, print_text_blocks
+from ._config import config
 
-VERSION = 'beta.0.0'
 
 ############################################################
 # Main
@@ -20,49 +18,14 @@ if __name__ == '__main__':
     ############################################################
     # Load Config
     ############################################################
-    SETTINGS = dict()
-
-    if os.getenv('VELOCITY_IMAGE_DIR') is not None:
-        SETTINGS['VELOCITY_IMAGE_DIR'] = os.getenv('VELOCITY_IMAGE_DIR')
-    else:
-        wprint([
-            TextBlock("VELOCITY_IMAGE_DIR not set!")
-        ])
-        exit(1)
-
     if os.getenv('VELOCITY_SYSTEM') is not None:
-        SETTINGS['VELOCITY_SYSTEM'] = os.getenv('VELOCITY_SYSTEM')
-    else:
-        wprint([
-            TextBlock("VELOCITY_SYSTEM not set!")
-        ])
-        exit(1)
-
+        config.set("velocity:system", os.getenv('VELOCITY_SYSTEM'))
     if os.getenv('VELOCITY_BACKEND') is not None:
-        SETTINGS['VELOCITY_BACKEND'] = os.getenv('VELOCITY_BACKEND')
-    else:
-        wprint([
-            TextBlock("VELOCITY_BACKEND not set!")
-        ])
-        exit(1)
-
+        config.set("velocity:backend", os.getenv('VELOCITY_BACKEND'))
     if os.getenv('VELOCITY_DISTRO') is not None:
-        SETTINGS['VELOCITY_DISTRO'] = os.getenv('VELOCITY_DISTRO')
-    else:
-        wprint([
-            TextBlock("VELOCITY_DISTRO not set!")
-        ])
-        exit(1)
-
+        config.set("velocity:distro", os.getenv('VELOCITY_DISTRO'))
     if os.getenv('VELOCITY_BUILD_DIR') is not None:
-        SETTINGS['VELOCITY_BUILD_DIR'] = os.getenv('VELOCITY_BUILD_DIR')
-    else:
-        wprint([
-            TextBlock("VELOCITY_BUILD_DIR not set!")
-        ])
-        exit(1)
-
-    SETTINGS['VERSION'] = VERSION
+        config.set("velocity:build_dir", os.getenv('VELOCITY_BUILD_DIR'))
 
     ############################################################
     # Parse Args
@@ -72,7 +35,7 @@ if __name__ == '__main__':
         description='Build tool for OLCF containers',
         epilog='See (https://gitlab.ccs.ornl.gov/saue-software/velocity)')
     parser.add_argument('-v', '--version', action='version',
-                        version=f"%(prog)s {SETTINGS['VERSION']}", help="program version")
+                        version=f"%(prog)s {config.get('velocity:version')}", help="program version")
     parser.add_argument('-b', '--backend', action='store')
     parser.add_argument('-s', '--system', action='store')
     parser.add_argument('-d', '--distro', action='store')
@@ -112,21 +75,21 @@ if __name__ == '__main__':
     ############################################################
     # apply user run time arguments over settings
     ############################################################
-    SETTINGS['VELOCITY_SYSTEM'] = args.system if args.system is not None else SETTINGS['VELOCITY_SYSTEM']
-    SETTINGS['VELOCITY_BACKEND'] = args.backend if args.backend is not None else SETTINGS['VELOCITY_BACKEND']
-    SETTINGS['VELOCITY_DISTRO'] = args.distro if args.distro is not None else SETTINGS['VELOCITY_DISTRO']
+    if args.system is not None:
+        config.set("velocity:system", args.system)
+    if args.backend is not None:
+        config.set("velocity:backend", args.backend)
+    if args.distro is not None:
+        config.set("velocity:distro", args.distro)
 
     ############################################################
     # Load images
     ############################################################
-    imageGraph = ImageGraph(
-        str(Path(SETTINGS['VELOCITY_IMAGE_DIR']).absolute()),
-        SETTINGS['VELOCITY_BACKEND'],
-        SETTINGS['VELOCITY_SYSTEM'],
-        SETTINGS['VELOCITY_DISTRO']
-    )
+    imageRepo = ImageRepo()
+    imageRepo.import_from_dir("/home/xjv/PycharmProjects/velocity-images")
 
     # print backend, system, distro
+    """
     p1print([
         TextBlock(f"System: "),
         TextBlock(f"{SETTINGS['VELOCITY_SYSTEM']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
@@ -140,30 +103,16 @@ if __name__ == '__main__':
         TextBlock(f"{SETTINGS['VELOCITY_DISTRO']}", fore=Fore.MAGENTA, style=Style.BRIGHT)
     ])
     print()  # add newline
+    """
 
     ############################################################
     # Handle User Commands
     ############################################################
     if args.subcommand == 'build':
         # parse targets
-        targets = []
-        for target in args.targets:
-            result = re.search(r'^(.*)@(.*)([%^_=])(.*)$', target)
-            if result is not None:
-                if result[3] == '=':
-                    targets.append(Target(Node(result[1], result[4]), DepOp.EQ))
-                elif result[3] == '^':
-                    targets.append(Target(Node(result[1], result[4]), DepOp.GE))
-                elif result[3] == '_':
-                    targets.append(Target(Node(result[1], result[4]), DepOp.LE))
-                elif result[3] == '%':
-                    targets.append(Target(Node(result[1], result[2]), DepOp.GE))
-                    targets.append(Target(Node(result[1], result[4]), DepOp.LE))
-            else:
-                targets.append(Target(Node(target, ''), DepOp.UN))
 
         # get recipe
-        recipe = imageGraph.create_build_recipe(targets)
+        recipe = imageRepo.create_build_recipe(args.targets)
 
         # print build specs
         p1print([
@@ -171,20 +120,16 @@ if __name__ == '__main__':
         ])
         for r in recipe:
             sp1print([
-                TextBlock(f"{r.name}@={r.tag}", fore=Fore.MAGENTA, style=Style.BRIGHT)
+                TextBlock(f"{r.name}@{r.version}", fore=Fore.MAGENTA, style=Style.BRIGHT)
             ])
         print()  # add newline
 
         # prep builder
         builder = Builder(
             recipe,
-            SETTINGS['VELOCITY_BACKEND'],
-            SETTINGS['VELOCITY_SYSTEM'],
-            SETTINGS['VELOCITY_DISTRO'],
             build_name=args.name,
             dry_run=args.dry_run,
             leave_tags=args.leave_tags,
-            build_dir=SETTINGS['VELOCITY_BUILD_DIR'],
             verbose=args.verbose
         )
 
@@ -195,7 +140,7 @@ if __name__ == '__main__':
 
         # group and order
         grouped = dict()
-        for node in imageGraph.nodes:
+        for node in imageRepo.images:
             if node.name not in grouped:
                 grouped[node.name] = list()
             grouped[node.name].append(node)
@@ -211,7 +156,7 @@ if __name__ == '__main__':
             deps.sort()
             for t in deps:
                 sp1print([
-                    TextBlock(t.tag, fore=Fore.YELLOW, style=Style.BRIGHT)
+                    TextBlock(t.version, fore=Fore.YELLOW, style=Style.BRIGHT)
                 ])
         print()  # add newline
 
@@ -313,7 +258,7 @@ if __name__ == '__main__':
                 raise NotADirectoryError(tag)
         else:
             raise NotADirectoryError(name)
-    
+
     elif args.subcommand == 'create':
         image_dir = Path(SETTINGS['VELOCITY_IMAGE_DIR']).joinpath(args.name, args.version)
         if image_dir.is_dir():

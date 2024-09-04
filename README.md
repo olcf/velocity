@@ -1,7 +1,7 @@
 <h1><img align="center" height="50" src="assets/artwork/icon.drawio.png"> VELOCITY</h1>
 
 ## Description
-Container build system.
+A container build manager.
 
 ## Documentation
 Run:

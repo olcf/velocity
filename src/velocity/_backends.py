@@ -1,12 +1,13 @@
 import re
 from hashlib import sha256
 from pathlib import Path
-from lib.exceptions import *
 from abc import ABC, abstractmethod
+from ._exceptions import (UndefinedVariableInTemplate, RepeatedSection, LineOutsideOfSection, TemplateSyntaxError,
+                         BackendNotSupported)
+from ._config import config
 
 
 def _substitute(text: str, variables: dict, regex: str) -> str:
-
     def _replace(m: re.Match):
         """
             Substitute a variables in a string by a regex.
@@ -24,7 +25,9 @@ class Backend(ABC):
     def __init__(self, name: str, variables: dict = None) -> None:
         self.name = name
         self.variables = {
-            '__backend__': self.name
+            '__backend__': config.get("velocity:backend"),
+            '__system__': config.get("velocity:system"),
+            '__distro__': config.get("velocity:distro")
         }
         if variables is not None:
             self.variables.update(variables)
@@ -98,7 +101,7 @@ class Backend(ABC):
                     _substitute(
                         line,
                         variables,
-                        r'(?<!\\)%\((\w*)\)'
+                        r'(?<!\\)%{{\s*(\w+)\s*}}'
                     )
                 )
                 if sf_con != '':
@@ -134,7 +137,7 @@ class Podman(Backend):
         if '@from' not in sections:
             raise TemplateSyntaxError("You must have a '@from' section in your template!")
         elif len(sections['@from']) != 1:
-            raise TemplateSyntaxError("You can only have one source in your template!",)
+            raise TemplateSyntaxError("You can only have one source in your template!", )
         elif len(sections['@from'][0].split()) != 1:
             raise TemplateSyntaxError("Your source must be a single string!", sections['@from'][0])
         else:
@@ -269,7 +272,7 @@ class Apptainer(Backend):
         elif len(sections['@from'][0].split()) != 1:
             raise TemplateSyntaxError("Your source must be a single string!", sections['@from'][0])
         else:
-            if re.match(r'^.*\.sif$', sections['@from'][0]):    #Path(sections['@from'][0]).is_file():
+            if re.match(r'^.*\.sif$', sections['@from'][0]):  #Path(sections['@from'][0]).is_file():
                 script.append('Bootstrap: localimage')
             elif re.match(r'^.*\/.*:.*$', sections['@from'][0]):
                 script.append('Bootstrap: docker')
@@ -351,10 +354,11 @@ class Apptainer(Backend):
         return 'echo'
 
 
-def get_backend(name: str, variables: dict) -> Backend:
-    if name == 'podman':
+def get_backend(variables: dict) -> Backend:
+    backend = config.get("velocity:backend")
+    if backend == 'podman':
         return Podman(variables)
-    elif name == 'apptainer':
+    elif backend == 'apptainer':
         return Apptainer(variables)
     else:
-        raise BackendNotSupported(name)
+        raise BackendNotSupported(backend)

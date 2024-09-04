@@ -49,3 +49,21 @@ class TemplateSyntaxError(Exception):
 
     def __init__(self, message, line: str = None):
         super().__init__(f"{message} {f':line: <{line}>' if line is not None else ''}")
+
+
+class InvalidImageVersionError(Exception):
+    """Invalid image version spec."""
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+class InvalidSchema(Exception):
+    """Invalid schema."""
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+class InvalidConfig(Exception):
+    """Invalid config."""
+    def __init__(self, *args):
+        super().__init__(*args)
