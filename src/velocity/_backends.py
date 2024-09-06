@@ -217,12 +217,15 @@ class Backend(ABC):
         """Generate CLI command to build."""
 
     @abstractmethod
-    def format_image_name(self, path: Path, image: Image) -> str:
+    def format_image_name(self, path: Path, tag: str) -> str:
         """Create a name for the image build."""
 
     @abstractmethod
-    def clean_up_old_image_cmd(self, path: Path, name: str) -> str:
+    def clean_up_old_image_tag(self, name: str) -> str:
         """Generate CLI command to clean up an old image."""
+
+    def build_exists(self, name: str) -> bool:
+        """Check if an images has been built."""
 
 
 class Podman(Backend):
@@ -344,8 +347,11 @@ class Podman(Backend):
     def format_image_name(self, path: Path, tag: str) -> str:
         return "{}{}{}".format("localhost/" if "/" not in tag else "", tag, ":latest" if ":" not in tag else "")
 
-    def clean_up_old_image_cmd(self, path: Path, name: str) -> str:
+    def clean_up_old_image_tag(self, name: str) -> str:
         return "podman untag {}".format(name)
+
+    def build_exists(self, name: str) -> bool:
+        return False
 
 
 class Apptainer(Backend):
@@ -421,18 +427,22 @@ class Apptainer(Backend):
         # arguments
         if args is not None and len(args) > 0:
             cmd.append(" ".join(_ for _ in args) if args is not None else "")
-        # script
-        cmd.append("{}".format(src))
         # destination
         cmd.append("{}".format(dest))
+        # script
+        cmd.append("{}".format(src))
         return " ".join(_ for _ in cmd) + ";"
 
     def format_image_name(self, path: Path, tag: str) -> str:
         return "{}{}".format(Path.joinpath(path, tag), ".sif" if ".sif" not in tag else "")
 
-    def clean_up_old_image_cmd(self, path: Path, name: str) -> str:
-        # TODO we need to think about apptainer image caching
+    def clean_up_old_image_tag(self, name: str) -> str:
         return "echo"
+
+    def build_exists(self, name: str) -> bool:
+        if Path(name).is_file():
+            return True
+        return False
 
 
 def get_backend() -> Backend:

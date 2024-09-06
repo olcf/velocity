@@ -1,10 +1,11 @@
 """Config organizer. Provides default config object for velocity."""
 
 from loguru import logger
-from ._exceptions import InvalidConfigIdentifier
 from platform import processor as arch
 from pathlib import Path
 from os import getlogin as get_username
+from importlib.metadata import version
+from ._exceptions import InvalidConfigIdentifier
 
 
 class Config:
@@ -75,8 +76,9 @@ _config.set(
         "verbose": False,
         "debug": "WARNING",
         "config_dir": Path.home().joinpath(".velocity", "config"),
-        "image_dir": Path.home().joinpath(".velocity", "images"),
+        "image_path": Path.home().joinpath(".velocity", "images"),
         "build_dir": Path("/tmp").joinpath(get_username(), "velocity"),
+        "version": version("velocity")
     },
 )
 config = _config

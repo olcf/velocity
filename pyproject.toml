@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "velocity"
-dynamic = [ "version" ]
+version = "0.1.0-rc1"
 authors = [
     { name="Asa"}
 ]
@@ -15,9 +15,7 @@ dependencies = [
     "networkx",
     "colorama",
     "editor",
-    "loguru",
-    "sys",
-    "shutil"
+    "loguru"
 ]
 
 [project.urls]
