@@ -1,364 +1,451 @@
-import re
-from hashlib import sha256
+"""Velocity backends."""
+
+from re import Match as re_Match, sub as re_sub, match as re_match
+from loguru import logger
+from shutil import which as shutil_which
 from pathlib import Path
 from abc import ABC, abstractmethod
-from ._exceptions import (UndefinedVariableInTemplate, RepeatedSection, LineOutsideOfSection, TemplateSyntaxError,
-                         BackendNotSupported)
+from ._exceptions import (
+    RepeatedSection,
+    LineOutsideOfSection,
+    TemplateSyntaxError,
+    BackendNotSupported,
+    BackendNotAvailable,
+)
 from ._config import config
+from ._graph import Image
 
 
-def _substitute(text: str, variables: dict, regex: str) -> str:
-    def _replace(m: re.Match):
-        """
-            Substitute a variables in a string by a regex.
-        """
-        if m.group(1) in variables:
+def _substitute(text: str, variables: dict[str, str], regex: str) -> str:
+    """Substitute a variables in a string by a regex."""
+
+    def _replace(m: re_Match):
+        try:
             return str(variables[m.group(1)])
-        else:
-            raise UndefinedVariableInTemplate(m.group(1))
+        except KeyError:
+            logger.warning("The variable '{}' is undefined. Setting value to ''.".format(m.group(1)))
 
-    return re.sub(regex, _replace, text)
+    return re_sub(regex, _replace, text)
 
 
 class Backend(ABC):
+    """Abstract class for velocity backend."""
 
-    def __init__(self, name: str, variables: dict = None) -> None:
-        self.name = name
-        self.variables = {
-            '__backend__': config.get("velocity:backend"),
-            '__system__': config.get("velocity:system"),
-            '__distro__': config.get("velocity:distro")
-        }
-        if variables is not None:
-            self.variables.update(variables)
-        self.template_sections = [
-            '@from',
-            '@pre',
-            '@arg',
-            '@copy',
-            '@run',
-            '@env',
-            '@label',
-            '@entry',
-            '@post'
-        ]
+    template_sections: list[str] = [
+        "@from",
+        "@pre",
+        "@copy",
+        "@run",
+        "@env",
+        "@label",
+        "@entry",
+        "@post",
+    ]
 
-    @abstractmethod
-    def generate_script(self, file: Path, variables: dict) -> list:
-        """
-        Generate a build script e.g. .dockerfile/.def
-        """
-        pass
+    @classmethod
+    def _get_sections(cls, template: list[str]) -> dict[str, list[str]]:
+        """Retrieve the sections from a VTMP."""
 
-    @abstractmethod
-    def generate_build_cmd(self, src: str, dest: str, args: list = None) -> str:
-        """
-        Generate CLI command to build image
-        """
-        pass
-
-    @abstractmethod
-    def format_image_name(self, path: Path, tag: str) -> str:
-        pass
-
-    @abstractmethod
-    def clean_up_old_image_cmd(self, name: str) -> str:
-        pass
-
-    def _get_sections(self, template: list) -> dict:
-        sections = dict()
-
-        past_sections = list()
-        current_section = None
+        sections: dict[str, list[str]] = dict()
+        past_sections: list[str] = list()
+        current_section: str | None = None
 
         for line in template:
-            if line in self.template_sections:
+            # if a line contains a section header
+            if line in cls.template_sections:
+                # move the current section to past_sections
                 if current_section is not None:
                     past_sections.append(current_section)
 
+                # check for repeated section
                 if line in past_sections:
-                    raise RepeatedSection(line)
+                    raise RepeatedSection(f"You have more than one '{line}' section in your template!")
                 else:
                     current_section = line
                     if current_section not in sections:
                         sections[current_section] = list()
+
             else:
+                # handel content lines
                 if current_section is None:
-                    raise LineOutsideOfSection
+                    raise LineOutsideOfSection("You have a line outside of a section in your template!")
                 else:
                     sections[current_section].append(line)
 
+        # remove empty sections
+        del_list: list[str] = list()
+        for sec in sections:
+            if len(sections[sec]) == 0:
+                del_list.append(sec)
+        for sec in del_list:
+            del sections[sec]
+
         return sections
 
-    def _load_template(self, file: Path, variables: dict) -> list:
-        variables.update(self.variables)
-        template = list()
-        with open(file, 'r') as file:
-            contents = file.readlines()
-            variables.update({'__hash__': sha256(''.join(contents).encode('utf-8')).hexdigest()})
+    @classmethod
+    def _filter_content(cls, image: Image, text: str) -> str:
+        """Filter conditionals and white space from a template line."""
+        # handle conditionals
+        res: re_Match[str] = re_match(r".*(\?\?([\S ]*)\|>(.*)\?\?).*", text)
+        if res is not None:
+            if image.satisfies(res.group(2)):
+                text = re_sub(r".*(\?\?.*\?\?).*", res.group(3), text)
+            else:
+                text = ""
+
+        # remove comments, newlines, and superfluous white space
+        text = re_sub(r"###.*", "", text)
+        text = re_sub(r"\n", "", text)
+        text = re_sub(r"^\s+|\s+$", "", text)
+
+        return text
+
+    @classmethod
+    def _load_template(cls, image: Image, variables: dict[str, str]) -> list[str]:
+        """Load a template and parse it."""
+        template: list[str] = list()
+        with open(
+            Path(image.path).joinpath("templates", "{}.vtmp".format(image.template)),
+            "r",
+        ) as file:
+            contents: list[str] = file.readlines()
             for line in contents:
-                sf_con = self._filter_content(
-                    _substitute(
-                        line,
-                        variables,
-                        r'(?<!\\)%{{\s*(\w+)\s*}}'
-                    )
-                )
-                if sf_con != '':
-                    template.append(sf_con)
+                fcon: str = cls._filter_content(image, _substitute(line, variables, r"{{\s*(\S+)\s*}}"))
+                if fcon != "":
+                    template.append(fcon)
         return template
 
-    def _filter_content(self, text: str) -> str:
-        # remove comments, newlines, and superfluous white space
-        t = re.sub(r'#.*', '', text)
-        t = re.sub(f'\n', '', t)
-        t = t.strip(' ')
+    def __init__(self, name: str, executable: str) -> None:
+        self.name: str = name
+        self.executable: str = executable
 
-        # is this line needed for this backend?
-        if t == '':
-            return ''
-        elif t[0] == '?' and f'?{self.name}' not in t:
-            return ''
-        else:
-            return re.sub(r'\?\w*', '', t).strip(' ')
+    def generate_script(self, image: Image, variables: dict[str, str]) -> list[str]:
+        """Generate a build script e.g. .dockerfile/.def"""
+        template: list[str] = self._load_template(image, variables)
+        sections: dict[str, list[str]] = self._get_sections(template)
+        script: list[str] = list()
+
+        # @from
+        try:
+            if len(sections["@from"]) != 1:
+                raise TemplateSyntaxError(
+                    "You can only have one source in the @from section!",
+                )
+            elif len(sections["@from"][0].split()) != 1:
+                raise TemplateSyntaxError("Your source must be a single string!", sections["@from"][0])
+            else:
+                script.extend(self._from(sections["@from"]))
+        except KeyError:
+            raise TemplateSyntaxError("You must have an @from section in your template!")
+        # arguments
+        script.extend(self._arguments(sections))
+        # @pre
+        if "@pre" in sections:
+            script.extend(self._literal_section(sections["@pre"]))
+        # @copy
+        if "@copy" in sections:
+            script.extend(self._copy(sections["@copy"]))
+        # @run
+        if "@run" in sections:
+            env_ext: list[str] = list()
+            script.extend(self._run(sections["@run"], env_ext))
+            if "@env" in sections:
+                sections["@env"].extend(env_ext)
+            else:
+                sections["@env"] = env_ext
+        # @env
+        if "@env" in sections:
+            script.extend(self._env(sections["@env"]))
+        # @label
+        if "@label" in sections:
+            script.extend(self._label(sections["@label"]))
+        # @entry
+        if "@entry" in sections:
+            if len(sections["@entry"]) != 1:
+                raise TemplateSyntaxError("You can only have one entrypoint!")
+            script.extend(self._entry(sections["@entry"]))
+        # @post
+        if "@post" in sections:
+            script.extend(self._literal_section(sections["@post"]))
+
+        return script
+
+    def is_available(self) -> bool:
+        """Check if the current system has the requested backend."""
+        if shutil_which(self.executable) is None:
+            return False
+        return True
+
+    @abstractmethod
+    def _from(self, contents: list[str]) -> list[str]:
+        """Handle the @from section."""
+
+    @abstractmethod
+    def _arguments(self, all_contents: dict[str, list[str]]) -> list[str]:
+        """Handle arguments."""
+
+    @abstractmethod
+    def _copy(self, contents: list[str]) -> list[str]:
+        """Handle the @copy section."""
+
+    @abstractmethod
+    def _run(self, contents: list[str], label_contents: list[str]) -> list[str]:
+        """Handle the @run section. If any !enver directives are found, return a list for the @env section."""
+
+    @abstractmethod
+    def _env(self, contents: list[str]) -> list[str]:
+        """Handle the @env section."""
+
+    @abstractmethod
+    def _label(self, contents: list[str]) -> list[str]:
+        """Handle the @label section."""
+
+    @abstractmethod
+    def _entry(self, contents: list[str]) -> list[str]:
+        """Handle the @entry section."""
+
+    @classmethod
+    def _literal_section(cls, contents: list[str]) -> list[str]:
+        """Handle literal sections."""
+        ret: list = [""]
+        for ln in contents:
+            ret.append(ln.lstrip("|"))
+        return ret
+
+    @abstractmethod
+    def generate_build_cmd(self, src: str, dest: str, args: list[str] = None) -> str:
+        """Generate CLI command to build."""
+
+    @abstractmethod
+    def format_image_name(self, path: Path, image: Image) -> str:
+        """Create a name for the image build."""
+
+    @abstractmethod
+    def clean_up_old_image_cmd(self, path: Path, name: str) -> str:
+        """Generate CLI command to clean up an old image."""
 
 
 class Podman(Backend):
+    """Podman backend."""
 
-    def __init__(self, variables: dict):
-        super().__init__(name='podman', variables=variables)
+    def __init__(self):
+        super().__init__(name="podman", executable="podman")
 
-    def generate_script(self, file: Path, variables: dict) -> list:
-        script = list()
-        template = self._load_template(file, variables)
-        sections = self._get_sections(template)
+    def _from(self, contents: list[str]) -> list[str]:
+        return [f"FROM {contents[0]}"]
 
-        # @from
-        if '@from' not in sections:
-            raise TemplateSyntaxError("You must have a '@from' section in your template!")
-        elif len(sections['@from']) != 1:
-            raise TemplateSyntaxError("You can only have one source in your template!", )
-        elif len(sections['@from'][0].split()) != 1:
-            raise TemplateSyntaxError("Your source must be a single string!", sections['@from'][0])
-        else:
-            script.append(f"FROM {sections['@from'][0]}")
-
-        # @arg
-        vbs = dict()
-        if '@arg' in sections:
-            if len(sections['@arg']) > 0:
-                script.append('')
-                for a in sections['@arg']:
-                    if len(a.split()) != 1:
+    def _arguments(self, all_contents: dict[str, list[str]]) -> list[str]:
+        ret: list[str] = list()
+        for si in all_contents.keys():
+            for li in range(len(all_contents[si])):
+                res: re_Match[str] = re_match(r".*(@@\s*(\S+)\s*@@).*", all_contents[si][li])
+                if res is not None:
+                    if len(res.group(2).split()) != 1:
                         raise TemplateSyntaxError("Arguments cannot have spaces in their names!")
                     else:
-                        script.append(f'ARG {a}')
-                        vbs[a] = f'${a}'
-        for si in sections.keys():
-            for li in range(len(sections[si])):
-                sections[si][li] = _substitute(sections[si][li], vbs, r'(?<!\\)@\((\w*)\)')
+                        ret.append("ARG {}".format(res.group(2)))
+                        all_contents[si][li] = _substitute(
+                            all_contents[si][li],
+                            {res.group(2): "${}".format(res.group(2))},
+                            r"@@\s*(\S+)\s*@@",
+                        )
+        if len(ret) > 0:
+            ret.insert(0, "")
+        return ret
 
-        # @copy
-        if '@copy' in sections:
-            if len(sections['@copy']) > 0:
-                script.append('')
-                for ln in sections['@copy']:
-                    if len(ln.split()) != 2:
-                        raise TemplateSyntaxError("Your '@copy' can only have one source and destination!", ln)
-                    script.append(f"COPY {ln}")
+    def _copy(self, contents: list[str]) -> list[str]:
+        ret: list[str] = [""]
+        for ln in contents:
+            if len(ln.split()) != 2:
+                raise TemplateSyntaxError("Entries in @copy can only have one source and destination!", ln)
+            ret.append(f"COPY {ln}")
+        return ret
 
-        if '@run' in sections:
-            if len(sections['@run']) > 0:
-                script.append('')
-                for cmd in sections['@run']:
-                    ln = ''
-                    if cmd == sections['@run'][0]:
-                        ln += 'RUN '
-                    else:
-                        ln += '    '
-                    ln += cmd
-                    if cmd != sections['@run'][-1]:
-                        ln += ' && \\'
-                    script.append(ln)
-
-        if '@env' in sections:
-            if len(sections['@env']) > 0:
-                script.append('')
-                for env in sections['@env']:
-                    parts = env.split()
-                    ln = ''
-                    if env == sections['@env'][0]:
-                        ln += 'ENV '
-                    else:
-                        ln += '    '
-                    ln += f"{parts[0]}=\"{env.lstrip(parts[0]).strip(' ')}\""
-                    if env != sections['@env'][-1]:
-                        ln += ' \\'
-                    script.append(ln)
-
-        if '@label' in sections:
-            if len(sections['@label']) > 0:
-                script.append('')
-                for label in sections['@label']:
-                    parts = label.split()
-                    if len(parts) != 2:
-                        raise TemplateSyntaxError("Labels must have two parts!", label)
-                    ln = ''
-                    if label == sections['@label'][0]:
-                        ln += 'LABEL '
-                    else:
-                        ln += '    '
-                    ln += f"{parts[0]}=\"{label.lstrip(parts[0]).strip(' ')}\""
-                    if label != sections['@label'][-1]:
-                        ln += ' \\'
-                    script.append(ln)
-
-        if '@entry' in sections:
-            if len(sections['@entry']) != 1:
-                raise TemplateSyntaxError("You must have one and only one entrypoint!")
+    def _run(self, contents: list[str], label_contents: list[str]) -> list[str]:
+        ret: list[str] = [""]
+        for cmd in contents:
+            # process !envar directives
+            alt_cmd = cmd
+            if re_match(r"^!envar\s+.*", cmd):
+                res = re_match(r"^!envar\s+(?P<name>\S+)\s+(?P<value>.*)$", cmd)
+                alt_cmd = 'export {name}="{value}"'.format(**res.groupdict())
+                label_contents.append("{name} {value}".format(**res.groupdict()))
+            # generate line
+            ln = ""
+            # place RUN on the first line
+            if cmd == contents[0]:
+                ln += "RUN "
             else:
-                script.append('')
-                script.append(f"ENTRYPOINT {str(sections['@entry'][0].split())}")
+                # indent following lines
+                ln += "    "
+            ln += alt_cmd
+            # add '&& \\' to all but the last line
+            if cmd != contents[-1]:
+                ln += " && \\"
+            ret.append(ln)
+        return ret
 
-        script.append('')
+    def _env(self, contents: list[str]) -> list[str]:
+        ret: list[str] = [""]
+        for env in contents:
+            parts = env.split()
+            # generate line
+            ln = ""
+            # add ENV to the first line
+            if env == contents[0]:
+                ln += "ENV "
+            else:
+                # indent following lines
+                ln += "    "
+            ln += f"{parts[0]}=\"{env.lstrip(parts[0]).strip(' ')}\""
+            # add '\\' to all but the last line
+            if env != contents[-1]:
+                ln += " \\"
+            ret.append(ln)
+        return ret
 
-        return script
+    def _label(self, contents: list[str]) -> list[str]:
+        ret: list[str] = [""]
+        for label in contents:
+            parts = label.split()
+            if len(parts) != 2:
+                raise TemplateSyntaxError("Label '{}' must have two parts!".format(label))
+            # generate line
+            ln = ""
+            # add LABEL to the first line
+            if label == contents[0]:
+                ln += "LABEL "
+            else:
+                # indent following lines
+                ln += "    "
+            ln += f"{parts[0]}=\"{label.lstrip(parts[0]).strip(' ')}\""
+            # add '\\' to all but the last line
+            if label != contents[-1]:
+                ln += " \\"
+            ret.append(ln)
+        return ret
+
+    def _entry(self, contents: list[str]) -> list[str]:
+        return ["", "ENTRYPOINT {}".format(contents[0].split())]
 
     def generate_build_cmd(self, src: str, dest: str, args: list = None) -> str:
-        arguments = ' ' + ' '.join(
-            _ for _ in args
-        ) if args is not None else ''
-        script = f' -f {src}'
-        destination = f' -t {dest}'
-        end = ' .;'
-
-        cmd = ['podman build', arguments, script, destination, end]
-        return ''.join(_ for _ in cmd)
+        cmd: list[str] = ["{} build".format(self.executable)]
+        # arguments
+        if args is not None and len(args) > 0:
+            cmd.append(" ".join(_ for _ in args) if args is not None else "")
+        # script
+        cmd.append("-f {}".format(src))
+        # destination
+        cmd.append("-t {}".format(dest))
+        # build dir
+        cmd.append(".")
+        return " ".join(_ for _ in cmd) + ";"
 
     def format_image_name(self, path: Path, tag: str) -> str:
-        return f"{'localhost/' if '/' not in tag else ''}{tag}{':latest' if ':' not in tag else ''}"
+        return "{}{}{}".format("localhost/" if "/" not in tag else "", tag, ":latest" if ":" not in tag else "")
 
-    def clean_up_old_image_cmd(self, name: str) -> str:
-        return f'podman untag {name}'
+    def clean_up_old_image_cmd(self, path: Path, name: str) -> str:
+        return "podman untag {}".format(name)
 
 
 class Apptainer(Backend):
+    """Apptainer backend."""
 
-    def __init__(self, variables: dict):
-        super().__init__(name='apptainer', variables=variables)
+    def __init__(self):
+        super().__init__(name="apptainer", executable="apptainer")
 
-    def generate_script(self, file: Path, variables: dict) -> list:
-        script = list()
-        template = self._load_template(file, variables)
-        sections = self._get_sections(template)
+    def _from(self, contents: list[str]) -> list[str]:
+        ret: list[str] = list()
+        if re_match(r"^.*\.sif$", contents[0]):
+            ret.append("Bootstrap: localimage")
+        elif re_match(r"^.*\/.*:.*$", contents[0]):
+            ret.append("Bootstrap: docker")
+        else:
+            raise TemplateSyntaxError("Unknown source format in @from!", contents[0])
+        ret.append("From: {}".format(contents[0]))
+        return ret
 
-        if '@arg' in sections:
-            if len(sections['@arg']) > 0:
-                vbs = dict()
-                for a in sections['@arg']:
-                    if len(a.split()) != 1:
+    def _arguments(self, all_contents: dict[str, list[str]]) -> list[str]:
+        for si in all_contents.keys():
+            for li in range(len(all_contents[si])):
+                res = re_match(r".*(@@\s*(\S+)\s*@@).*", all_contents[si][li])
+                if res is not None:
+                    if len(res.group(2).split()) != 1:
                         raise TemplateSyntaxError("Arguments cannot have spaces in their names!")
                     else:
-                        vbs[a] = '{{ ' + a + ' }}'
+                        all_contents[si][li] = _substitute(
+                            all_contents[si][li],
+                            {res.group(2): f"{{{{ {res.group(2)} }}}}"},
+                            r"@@\s*(\S+)\s*@@",
+                        )
+        return list()
 
-                for si in sections.keys():
-                    for li in range(len(sections[si])):
-                        sections[si][li] = _substitute(sections[si][li], vbs, r'(?<!\\)@\((\w*)\)')
+    def _copy(self, contents: list[str]) -> list[str]:
+        ret: list[str] = ["", "%files"]
+        for ln in contents:
+            if len(ln.split()) != 2:
+                raise TemplateSyntaxError("Your '@copy' can only have one source and destination!", ln)
+            ret.append("    {}".format(ln))
+        return ret
 
-        if '@from' not in sections:
-            raise TemplateSyntaxError("You must have a '@from' section in your template!")
-        elif len(sections['@from']) != 1:
-            raise TemplateSyntaxError("You can only have one source in your template!", )
-        elif len(sections['@from'][0].split()) != 1:
-            raise TemplateSyntaxError("Your source must be a single string!", sections['@from'][0])
-        else:
-            if re.match(r'^.*\.sif$', sections['@from'][0]):  #Path(sections['@from'][0]).is_file():
-                script.append('Bootstrap: localimage')
-            elif re.match(r'^.*\/.*:.*$', sections['@from'][0]):
-                script.append('Bootstrap: docker')
-            else:
-                raise TemplateSyntaxError("Unknown source format!", sections['@from'][0])
-            script.append(f"From: {sections['@from'][0]}")
+    def _run(self, contents: list[str], label_contents: list[str]) -> list[str]:
+        ret: list[str] = ["", "%post"]
+        for cmd in contents:
+            # handel !envar directives
+            if re_match(r"^!envar\s+.*", cmd):
+                res = re_match(r"^!envar\s+(?P<name>\S+)\s+(?P<value>.*)$", cmd)
+                cmd = 'export {name}="{value}"'.format(**res.groupdict())
+                label_contents.append("{name} {value}".format(**res.groupdict()))
+            ret.append("    {}".format(cmd))
+        return ret
 
-        if '@pre' in sections:
-            if len(sections['@pre']) > 0:
-                script.append('')
-                for ln in sections['@pre']:
-                    script.append(ln.lstrip('|'))
+    def _env(self, contents: list[str]) -> list[str]:
+        ret: list[str] = ["", "%environment"]
+        for env in contents:
+            parts = env.split()
+            ret.append('    export {}="{}"'.format(parts[0], env.lstrip(parts[0]).strip(" ")))
+        return ret
 
-        if '@copy' in sections:
-            if len(sections['@copy']) > 0:
-                script.append('')
-                script.append('%files')
-                for ln in sections['@copy']:
-                    if len(ln.split()) != 2:
-                        raise TemplateSyntaxError("Your '@copy' can only have one source and destination!", ln)
-                    script.append(f"    {ln}")
+    def _label(self, contents: list[str]) -> list[str]:
+        ret: list[str] = ["", "%labels"]
+        for label in contents:
+            parts = label.split()
+            ret.append("    {} {}".format(parts[0], label.lstrip(parts[0]).strip(" ")))
+        return ret
 
-        if '@run' in sections:
-            if len(sections['@run']) > 0:
-                script.append('')
-                script.append('%post')
-                for cmd in sections['@run']:
-                    script.append(f'    {cmd}')
-
-        if '@env' in sections:
-            if len(sections['@env']) > 0:
-                script.append('')
-                script.append('%environment')
-                for env in sections['@env']:
-                    parts = env.split()
-                    script.append(f"    export {parts[0]}=\"{env.lstrip(parts[0]).strip(' ')}\"")
-
-        if '@label' in sections:
-            if len(sections['@label']) > 0:
-                script.append('')
-                script.append('%labels')
-                for label in sections['@label']:
-                    parts = label.split()
-                    script.append(f"    {parts[0]} {label.lstrip(parts[0]).strip(' ')}")
-
-        if '@entry' in sections:
-            if len(sections['@entry']) != 1:
-                raise TemplateSyntaxError("You must have one and only one entrypoint!")
-            else:
-                script.append('')
-                script.append('%runscript')
-                script.append(f"    {sections['@entry'][0]}")
-
-        if '@post' in sections:
-            if len(sections['@post']) > 0:
-                script.append('')
-                for ln in sections['@post']:
-                    script.append(ln.lstrip('|'))
-
-        script.append('')
-
-        return script
+    def _entry(self, contents: list[str]) -> list[str]:
+        return ["", "%runscript", "    {}".format(contents[0])]
 
     def generate_build_cmd(self, src: str, dest: str, args: list = None) -> str:
-        arguments = ' ' + ' '.join(
-            x for x in args
-        ) if args is not None else ''
-        script = f' {src}'
-        destination = f' {dest}'
-        end = ';'
-
-        cmd = ['apptainer build', arguments, destination, script, end]
-        return ''.join(_ for _ in cmd)
+        cmd: list[str] = ["{} build".format(self.executable)]
+        # arguments
+        if args is not None and len(args) > 0:
+            cmd.append(" ".join(_ for _ in args) if args is not None else "")
+        # script
+        cmd.append("{}".format(src))
+        # destination
+        cmd.append("{}".format(dest))
+        return " ".join(_ for _ in cmd) + ";"
 
     def format_image_name(self, path: Path, tag: str) -> str:
-        return f"{Path.joinpath(path, tag)}{'.sif' if '.sif' not in tag else ''}"
+        return "{}{}".format(Path.joinpath(path, tag), ".sif" if ".sif" not in tag else "")
 
-    def clean_up_old_image_cmd(self, name: str) -> str:
-        return 'echo'
+    def clean_up_old_image_cmd(self, path: Path, name: str) -> str:
+        # TODO we need to think about apptainer image caching
+        return "echo"
 
 
-def get_backend(variables: dict) -> Backend:
+def get_backend() -> Backend:
     backend = config.get("velocity:backend")
-    if backend == 'podman':
-        return Podman(variables)
-    elif backend == 'apptainer':
-        return Apptainer(variables)
+    if backend == "podman":
+        b = Podman()
+    elif backend == "apptainer":
+        b = Apptainer()
     else:
         raise BackendNotSupported(backend)
+
+    # check that backend is available
+    if b.is_available():
+        return b
+    else:
+        raise BackendNotAvailable("Your system does not have the '{}' backend".format(b.name))
