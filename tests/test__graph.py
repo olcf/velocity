@@ -1,7 +1,6 @@
 from unittest import TestCase
 from re import compile
 from src.velocity._graph import (
-    VERSION_REGEX,
     Version,
     Image
 )
@@ -9,7 +8,7 @@ from src.velocity._graph import (
 
 class Test(TestCase):
     def test_version_regex(self):
-        p = compile(VERSION_REGEX)
+        p = compile(r"^(?P<major>[0-9]+)(?:\.(?P<minor>[0-9]+)(:?\.(?P<patch>[0-9]+))?)?(?:-(?P<suffix>[a-zA-Z0-9]+))?$")
 
         # test 2.3.5-s90er
         m = p.search("2.3.5-s90er")
