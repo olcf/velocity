@@ -94,7 +94,7 @@ class Backend(ABC):
                 text = ""
 
         # remove comments, newlines, and superfluous white space
-        text = re_sub(r"###.*", "", text)
+        text = re_sub(r">>>.*", "", text)
         text = re_sub(r"\n", "", text)
         text = re_sub(r"^\s+|\s+$", "", text)
 
@@ -121,6 +121,7 @@ class Backend(ABC):
 
     def generate_script(self, image: Image, variables: dict[str, str]) -> list[str]:
         """Generate a build script e.g. .dockerfile/.def"""
+        logger.debug("Variables: {}".format(variables))
         template: list[str] = self._load_template(image, variables)
         sections: dict[str, list[str]] = self._get_sections(template)
         script: list[str] = list()
@@ -149,10 +150,11 @@ class Backend(ABC):
         if "@run" in sections:
             env_ext: list[str] = list()
             script.extend(self._run(sections["@run"], env_ext))
-            if "@env" in sections:
-                sections["@env"].extend(env_ext)
-            else:
-                sections["@env"] = env_ext
+            if len(env_ext) > 0:
+                if "@env" in sections:
+                    sections["@env"].extend(env_ext)
+                else:
+                    sections["@env"] = env_ext
         # @env
         if "@env" in sections:
             script.extend(self._env(sections["@env"]))
@@ -224,8 +226,13 @@ class Backend(ABC):
     def clean_up_old_image_tag(self, name: str) -> str:
         """Generate CLI command to clean up an old image."""
 
+    @abstractmethod
     def build_exists(self, name: str) -> bool:
         """Check if an images has been built."""
+
+    @abstractmethod
+    def generate_final_image_cmd(self, src: str, dest: str) -> str:
+        """Generate command to move the last image in the build to its final destination."""
 
 
 class Podman(Backend):
@@ -348,10 +355,13 @@ class Podman(Backend):
         return "{}{}{}".format("localhost/" if "/" not in tag else "", tag, ":latest" if ":" not in tag else "")
 
     def clean_up_old_image_tag(self, name: str) -> str:
-        return "podman untag {}".format(name)
+        return "podman rmi {}".format(name)
 
     def build_exists(self, name: str) -> bool:
         return False
+
+    def generate_final_image_cmd(self, src: str, dest: str) -> str:
+        return "{} tag {} {}".format(self.executable, src, dest)
 
 
 class Apptainer(Backend):
@@ -391,7 +401,7 @@ class Apptainer(Backend):
         for ln in contents:
             if len(ln.split()) != 2:
                 raise TemplateSyntaxError("Your '@copy' can only have one source and destination!", ln)
-            ret.append("    {}".format(ln))
+            ret.append("{}".format(ln))
         return ret
 
     def _run(self, contents: list[str], label_contents: list[str]) -> list[str]:
@@ -402,25 +412,25 @@ class Apptainer(Backend):
                 res = re_match(r"^!envar\s+(?P<name>\S+)\s+(?P<value>.*)$", cmd)
                 cmd = 'export {name}="{value}"'.format(**res.groupdict())
                 label_contents.append("{name} {value}".format(**res.groupdict()))
-            ret.append("    {}".format(cmd))
+            ret.append("{}".format(cmd))
         return ret
 
     def _env(self, contents: list[str]) -> list[str]:
         ret: list[str] = ["", "%environment"]
         for env in contents:
             parts = env.split()
-            ret.append('    export {}="{}"'.format(parts[0], env.lstrip(parts[0]).strip(" ")))
+            ret.append('export {}="{}"'.format(parts[0], env.lstrip(parts[0]).strip(" ")))
         return ret
 
     def _label(self, contents: list[str]) -> list[str]:
         ret: list[str] = ["", "%labels"]
         for label in contents:
             parts = label.split()
-            ret.append("    {} {}".format(parts[0], label.lstrip(parts[0]).strip(" ")))
+            ret.append("{} {}".format(parts[0], label.lstrip(parts[0]).strip(" ")))
         return ret
 
     def _entry(self, contents: list[str]) -> list[str]:
-        return ["", "%runscript", "    {}".format(contents[0])]
+        return ["", "%runscript", "{}".format(contents[0])]
 
     def generate_build_cmd(self, src: str, dest: str, args: list = None) -> str:
         cmd: list[str] = ["{} build".format(self.executable)]
@@ -443,6 +453,9 @@ class Apptainer(Backend):
         if Path(name).is_file():
             return True
         return False
+
+    def generate_final_image_cmd(self, src: str, dest: str) -> str:
+        return "cp {} {}".format(src, dest)
 
 
 def get_backend() -> Backend:

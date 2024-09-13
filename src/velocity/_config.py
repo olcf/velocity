@@ -3,8 +3,8 @@
 from loguru import logger
 from platform import processor as arch
 from pathlib import Path
-from os import getlogin as get_username
-from importlib.metadata import version
+from os import getlogin as get_username, getenv
+from yaml import safe_load as yaml_safe_load
 from ._exceptions import InvalidConfigIdentifier
 
 
@@ -24,9 +24,7 @@ class Config:
                 for p in parts:
                     # make all config identifiers comply with python identifiers
                     if not p.isidentifier():
-                        raise InvalidConfigIdentifier(
-                            "'{}' is not a valid identifier.".format(item)
-                        )
+                        raise InvalidConfigIdentifier("'{}' is not a valid identifier.".format(item))
                     # walk config tree until the final node is found
                     if p != parts[-1]:
                         if p not in set_value:
@@ -48,9 +46,7 @@ class Config:
                 # make all config identifiers comply with python identifiers
                 for p in parts:
                     if not p.isidentifier():
-                        raise InvalidConfigIdentifier(
-                            "'{}' is not a valid identifier.".format(item)
-                        )
+                        raise InvalidConfigIdentifier("'{}' is not a valid identifier.".format(item))
                     ret_value = ret_value[p]
                 return ret_value
             else:
@@ -61,24 +57,66 @@ class Config:
             logger.exception(e)
         return None
 
+    def load(self) -> None:
+        """Load configuration."""
+        if self.get("velocity:config_dir") is None:
+            self.set("velocity:config_dir", Path.home().joinpath(".velocity").__str__())
+        config_dir = Path(self.get("velocity:config_dir"))
+        try:
+            with open(config_dir.joinpath("config.yaml"), "r") as fi:
+                conf = yaml_safe_load(fi)
+                for k in conf:
+                    self.set(k, conf[k])
+        except FileNotFoundError:
+            logger.warning("Could not load configuration file from '{}'!".format(config_dir.joinpath("config.yaml")))
+
     def __str__(self) -> str:
         return str(self._config)
 
 
 # default configuration & singleton
 _config = Config()
-_config.set(
-    "velocity",
-    {
-        "system": arch(),
-        "backend": "apptainer",
-        "distro": "ubuntu",
-        "verbose": False,
-        "debug": "WARNING",
-        "config_dir": Path.home().joinpath(".velocity", "config"),
-        "image_path": Path.home().joinpath(".velocity", "images"),
-        "build_dir": Path("/tmp").joinpath(get_username(), "velocity"),
-        "version": version("velocity")
-    },
-)
+_config.load()
+
+# get config from environment variables
+if getenv("VELOCITY_SYSTEM") is not None:
+    _config.set("velocity:system", getenv("VELOCITY_SYSTEM"))
+
+if getenv("VELOCITY_BACKEND") is not None:
+    _config.set("velocity:backend", getenv("VELOCITY_BACKEND"))
+
+if getenv("VELOCITY_DISTRO") is not None:
+    _config.set("velocity:distro", getenv("VELOCITY_DISTRO"))
+
+if getenv("VELOCITY_CONFIG_DIR") is not None:
+    _config.set("velocity:config_dir", getenv("VELOCITY_CONFIG_DIR"))
+
+if getenv("VELOCITY_IMAGE_PATH") is not None:
+    _config.set("velocity:image_path", getenv("VELOCITY_IMAGE_PATH"))
+
+if getenv("VELOCITY_BUILD_DIR") is not None:
+    _config.set("velocity:build_dir", getenv("VELOCITY_BUILD_DIR"))
+
+# set defaults for un-configured items
+if _config.get("velocity:system") is None:
+    _config.set("velocity:system", arch())
+
+if _config.get("velocity:backend") is None:
+    _config.set("velocity:backend", "apptainer")
+
+if _config.get("velocity:distro") is None:
+    _config.set("velocity:distro", "ubuntu")
+
+if _config.get("velocity:debug") is None:
+    _config.set("velocity:debug", "WARNING")
+
+if _config.get("velocity:image_path") is None:
+    image_dir = Path.home().joinpath(".velocity", "images")
+    image_dir.mkdir(parents=True, exist_ok=True)
+    _config.set("velocity:image_path", image_dir.__str__())
+
+if _config.get("velocity:build_dir") is None:
+    _config.set("velocity:build_dir", Path("/tmp").joinpath(get_username(), "velocity").__str__())
+
+# export
 config = _config

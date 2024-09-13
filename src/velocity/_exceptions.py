@@ -1,69 +1,78 @@
+"""Exceptions for velocity."""
+
 from sys import stderr
 
 
-class InvalidDependencySpecification(Exception):
+class CannotFindDependency(Exception):
+    """Cannot find an image dependency."""
 
-    def __init__(self, spec, image, tag, file):
-        super().__init__(f"The provided dependency '{spec}' for {image}@={tag} is invalid! Please fix {file}")
+    def __init__(self, *args) -> None:
+        super().__init__(*args)
 
 
 class NoAvailableBuild(Exception):
+    """No available build can be found."""
 
-    def __init__(self, message):
-        super().__init__(message)
+    def __init__(self, *args) -> None:
+        super().__init__(*args)
 
 
 class EdgeViolatesDAG(Exception):
+    """Edge breaks the DAG requirement of a graph."""
 
-    def __init__(self, u_of_edge, v_of_edge, cycle):
+    def __init__(self, u_of_edge, v_of_edge, cycle) -> None:
         super().__init__(f"Addition of edge {u_of_edge} -> {v_of_edge} violates graph DAG requirement!")
         for c in cycle:
-            print(f'{c[0]} -> {c[1]}', file=stderr)
+            print(f"{c[0]} -> {c[1]}", file=stderr)
 
 
 class BackendNotSupported(Exception):
+    """Container backend not supported."""
 
-    def __init__(self, backend):
-        super().__init__(f"The '{backend}' is not supported!")
+    def __init__(self, *args):
+        super().__init__(*args)
+
+
+class BackendNotAvailable(Exception):
+    """Container backend not supported."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
 
 
 class UndefinedVariableInTemplate(Exception):
+    """Undefined variable during substitution in template."""
 
-    def __init__(self, variable):
-        super().__init__(f"The variable '{variable}' is undefined!")
+    def __init__(self, *args):
+        super().__init__(*args)
 
 
 class RepeatedSection(Exception):
+    """Repeated template section."""
 
-    def __init__(self, section):
-        super().__init__(f"You have more than one '{section}' section in your template!")
+    def __init__(self, *args):
+        super().__init__(*args)
 
 
 class LineOutsideOfSection(Exception):
-
-    def __init__(self):
-        super().__init__(f"You have a line outside of a section in your template!")
+    def __init__(self, *args):
+        super().__init__(*args)
 
 
 class TemplateSyntaxError(Exception):
-
     def __init__(self, message, line: str = None):
         super().__init__(f"{message} {f':line: <{line}>' if line is not None else ''}")
 
 
 class InvalidImageVersionError(Exception):
     """Invalid image version spec."""
+
     def __init__(self, *args):
         super().__init__(*args)
 
 
-class InvalidSchema(Exception):
-    """Invalid schema."""
-    def __init__(self, *args):
-        super().__init__(*args)
+class InvalidConfigIdentifier(Exception):
+    """Invalid configuration identifier."""
 
-
-class InvalidConfig(Exception):
-    """Invalid config."""
-    def __init__(self, *args):
+    def __init__(self, *args) -> None:
         super().__init__(*args)

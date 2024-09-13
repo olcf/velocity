@@ -54,7 +54,6 @@ class Version:
             self.minor: int | None = int(version_dict["minor"]) if version_dict["minor"] is not None else None
             self.patch: int | None = int(version_dict["patch"]) if version_dict["patch"] is not None else None
             self.suffix: str | None = str(version_dict["suffix"]) if version_dict["suffix"] is not None else None
-            logger.trace("Version: {}".format(self.__str__()))
         except AttributeError:
             self.major: int | None = None
             self.minor: int | None = None
@@ -260,7 +259,7 @@ class Image:
                 self.arguments.add(spec)
             elif _type == "template":
                 self.template = spec
-            elif self.files == "file":
+            elif _type == "file":
                 self.files.add(spec)
             elif _type == "prolog":
                 self.prolog = spec
@@ -274,7 +273,7 @@ class Image:
         hash_list.append(self.name)
         hash_list.append(self.version)
         hash_list.append(self.system)
-        hash_list.append(self.backend)
+        # hash_list.append(self.backend) # disable backend for now because it should not make a difference in the image
         hash_list.append(self.distro)
         hash_list.append(",".join(str(x) for x in self.dependencies))
         hash_list.append(",".join(str(x) for x in self.variables))
@@ -520,9 +519,41 @@ class ImageRepo:
     """Image repository."""
 
     def __init__(self) -> None:
+        self.images: set[Image] = set()
         # constraint(image, condition, type, spec, scope)
         self.constraints: list[tuple[str, str, str, str, str]] = list()
-        self.images: set[Image] = set()
+        if config.get("constraints") is not None:
+            # arguments
+            if "arguments" in config.get("constraints"):
+                for argument in config.get("constraints")["arguments"]:
+                    if isinstance(argument["value"], list):
+                        specs = argument["value"]
+                    else:
+                        specs = [
+                            argument["value"],
+                        ]
+                    for spec in specs:
+                        self.constraints.append(
+                            (
+                                "",
+                                argument["when"] if "when" in argument else "",
+                                "argument",
+                                spec,
+                                "global",
+                            )
+                        )
+            # variables
+            if "variables" in config.get("constraints"):
+                for variable in config.get("constraints")["variables"]:
+                    self.constraints.append(
+                        (
+                            "",
+                            variable["when"] if "when" in variable else "",
+                            "variable",
+                            "{}={}".format(variable["name"], variable["value"]),
+                            "global",
+                        )
+                    )
 
     def import_from_dir(self, path: str) -> None:
         """Add Images from path."""
@@ -532,63 +563,90 @@ class ImageRepo:
 
         for name in [x for x in p.iterdir() if x.is_dir() and x.name[0] != "."]:
             with open(name.joinpath("specs.yaml"), "r") as fi:
-                specs = yaml_safe_load(fi)
+                specs_file = yaml_safe_load(fi)
                 # add versions
-                for version in specs["versions"]:
-                    image = Image(
-                        name.name,
-                        version["spec"],
-                        config.get("velocity:system"),
-                        config.get("velocity:backend"),
-                        config.get("velocity:distro"),
-                        str(name),
-                    )
-                    if "when" in version:
-                        if image.satisfies(version["when"]):
-                            self.images.add(image)
+                for version in specs_file["versions"]:
+                    if isinstance(version["spec"], list):
+                        specs = version["spec"]
                     else:
-                        self.images.add(image)
-
+                        specs = [
+                            version["spec"],
+                        ]
+                    for spec in specs:
+                        image = Image(
+                            name.name,
+                            spec,
+                            config.get("velocity:system"),
+                            config.get("velocity:backend"),
+                            config.get("velocity:distro"),
+                            str(name),
+                        )
+                        if "when" in version:
+                            if image.satisfies(version["when"]):
+                                self.images.add(image)
+                        else:
+                            self.images.add(image)
                 # add constraints
                 # dependencies
-                if "dependencies" in specs:
-                    for dependency in specs["dependencies"]:
-                        self.constraints.append(
-                            (
-                                name.name,
-                                dependency["when"] if "when" in dependency else "",
-                                "dependency",
+                if "dependencies" in specs_file:
+                    for dependency in specs_file["dependencies"]:
+                        if isinstance(dependency["spec"], list):
+                            specs = dependency["spec"]
+                        else:
+                            specs = [
                                 dependency["spec"],
-                                dependency["scope"] if "scope" in dependency else "image",
+                            ]
+                        for spec in specs:
+                            self.constraints.append(
+                                (
+                                    name.name,
+                                    dependency["when"] if "when" in dependency else "",
+                                    "dependency",
+                                    spec,
+                                    dependency["scope"] if "scope" in dependency else "image",
+                                )
                             )
-                        )
                 # templates
-                if "templates" in specs:
-                    for template in specs["templates"]:
-                        self.constraints.append(
-                            (
-                                name.name,
-                                template["when"] if "when" in template else "",
-                                "template",
-                                template["path"],
-                                template["scope"] if "scope" in template else "image",
+                if "templates" in specs_file:
+                    for template in specs_file["templates"]:
+                        if isinstance(template["name"], list):
+                            specs = template["name"]
+                        else:
+                            specs = [
+                                template["name"],
+                            ]
+                        for spec in specs:
+                            self.constraints.append(
+                                (
+                                    name.name,
+                                    template["when"] if "when" in template else "",
+                                    "template",
+                                    spec,
+                                    template["scope"] if "scope" in template else "image",
+                                )
                             )
-                        )
                 # arguments
-                if "arguments" in specs:
-                    for argument in specs["arguments"]:
-                        self.constraints.append(
-                            (
-                                name.name,
-                                argument["when"] if "when" in argument else "",
-                                "argument",
+                if "arguments" in specs_file:
+                    for argument in specs_file["arguments"]:
+                        if isinstance(argument["value"], list):
+                            specs = argument["value"]
+                        else:
+                            specs = [
                                 argument["value"],
-                                argument["scope"] if "scope" in argument else "image",
+                            ]
+                        for spec in specs:
+                            self.constraints.append(
+                                (
+                                    name.name,
+                                    argument["when"] if "when" in argument else "",
+                                    "argument",
+                                    spec,
+                                    argument["scope"] if "scope" in argument else "image",
+                                )
                             )
-                        )
                 # variables
-                if "variables" in specs:
-                    for variable in specs["variables"]:
+                if "variables" in specs_file:
+                    for variable in specs_file["variables"]:
                         self.constraints.append(
                             (
                                 name.name,
@@ -599,20 +657,27 @@ class ImageRepo:
                             )
                         )
                 # files
-                if "files" in specs:
-                    for file in specs["files"]:
-                        self.constraints.append(
-                            (
-                                name.name,
-                                file["when"] if "when" in file else "",
-                                "file",
+                if "files" in specs_file:
+                    for file in specs_file["files"]:
+                        if isinstance(file["name"], list):
+                            specs = file["name"]
+                        else:
+                            specs = [
                                 file["name"],
-                                file["scope"] if "scope" in file else "image",
+                            ]
+                        for spec in specs:
+                            self.constraints.append(
+                                (
+                                    name.name,
+                                    file["when"] if "when" in file else "",
+                                    "file",
+                                    spec,
+                                    file["scope"] if "scope" in file else "image",
+                                )
                             )
-                        )
                 # prologs
-                if "prologs" in specs:
-                    for prolog in specs["prologs"]:
+                if "prologs" in specs_file:
+                    for prolog in specs_file["prologs"]:
                         self.constraints.append(
                             (
                                 name.name,
@@ -623,12 +688,11 @@ class ImageRepo:
                             )
                         )
 
-    def create_build_recipe(self, targets: list[str]) -> tuple:
+    def create_build_recipe(self, targets: list[str]) -> tuple[tuple, ImageGraph]:
         """Create an ordered build recipe of images."""
         images: set[Image] = deepcopy(self.images)
 
         build_targets: list[Target] = list()
-        targs: list[Image] = list()
         for target in targets:
             res = re_fullmatch(
                 r"^(?P<name>[a-zA-Z0-9-]+)(?:(?:@(?P<left>[\d\.]+)(?!@))?(?:@?(?P<colen>:)(?P<right>[\d\.]+)?)?)?$",
@@ -646,7 +710,6 @@ class ImageRepo:
                         config.get("velocity:distro"),
                         "",
                     )
-                    targs.append(t)
                     if gd["colen"] is not None:
                         build_targets.append(Target(t, DepOp.GE))
                     else:
@@ -663,7 +726,6 @@ class ImageRepo:
                             "",
                         )
                         build_targets.append(Target(t, DepOp.LE))
-                        targs.append(t)
                     else:
                         raise InvalidImageVersionError("Invalid version '{}'.".format(target))
                 # n
@@ -680,7 +742,6 @@ class ImageRepo:
                             "",
                         )
                         build_targets.append(Target(t, DepOp.UN))
-                        targs.append(t)
                 # n@v:v
                 else:
                     t = Image(
@@ -692,7 +753,6 @@ class ImageRepo:
                         "",
                     )
                     build_targets.append(Target(t, DepOp.GE))
-                    targs.append(t)
                     t = Image(
                         gd["name"],
                         gd["right"],
@@ -702,22 +762,38 @@ class ImageRepo:
                         "",
                     )
                     build_targets.append(Target(t, DepOp.LE))
-                    targs.append(t)
             else:
                 raise NoAvailableBuild("No available build!")
 
-        # apply constraints
+        # pre-burner graph
+        for constraint in self.constraints:
+            pass
+            for image in images:
+                if image.apply_constraint("{} {}".format(constraint[0], constraint[1]), constraint[2], constraint[3]):
+                    images_changed = True
+        ig = ImageGraph()
+        for image in images:
+            ig.add_node(image)
+        for image in images:
+            for dep in image.dependencies:
+                for di in images:
+                    if di.satisfies(dep):
+                        ig.add_edge(image, di)
+
+        bt: tuple[Image] = ig.create_build_recipe(build_targets)
+
+        # apply constraints for the build scope
         images_changed: bool = True
         while images_changed:
             images_changed = False
             for constraint in self.constraints:
                 if constraint[4] == "build":
-                    for targ in targs:
+                    for targ in bt:
                         if targ.satisfies(constraint[1]):
                             for image in images:
                                 if image.apply_constraint(constraint[0], constraint[2], constraint[3]):
                                     images_changed = True
-                # default is constraint[4] == "image"
+                # "image" or "universal"
                 else:
                     for image in images:
                         if image.apply_constraint(
@@ -743,4 +819,13 @@ class ImageRepo:
             b.underlay = cumulative_deps
             cumulative_deps = cumulative_deps + int(b.id, 16)
 
-        return bt
+        bt_ig = ImageGraph()
+        for image in bt:
+            bt_ig.add_node(image)
+        for image in bt:
+            for dep in image.dependencies:
+                for di in bt:
+                    if di.satisfies(dep):
+                        bt_ig.add_edge(image, di)
+
+        return bt, bt_ig

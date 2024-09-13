@@ -9,6 +9,7 @@ from queue import SimpleQueue
 from threading import Thread
 from pathlib import Path
 from colorama import Fore, Style
+from platform import processor as arch
 from ._config import config
 from ._graph import Image
 from ._print import header_print, indent_print, TextBlock
@@ -97,6 +98,10 @@ class ImageBuilder:
         self.build_dir = Path(config.get("velocity:build_dir"))
         self.build_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
 
+        self.variables: dict[str, str] = dict()
+        for i in self.build_units:
+            self.variables["__{}__version__".format(i.name)] = i.version.__str__()
+
     def build(self) -> None:
         """Launch image builds."""
         # store pwd
@@ -110,28 +115,34 @@ class ImageBuilder:
                 else:
                     entry.unlink()
 
-        last = None  # last image that was built
+        last = str()  # last image that was built
+        build_names: list[str] = list()
         for u in self.build_units:
-            if u == self.build_units[-1]:
-                tag = str(
-                    self.build_name
-                    if self.build_name is not None
-                    else "{}__{}-{}".format(
-                        "_".join(f"{bu.name}-{bu.version}" for bu in reversed(self.build_units)),
-                        config.get("velocity:system"),
-                        config.get("velocity:distro"),
-                    )
-                )
-                name = self.backend_engine.format_image_name(Path(pwd.absolute()), tag)
-            else:
-                name = self.backend_engine.format_image_name(
-                    Path.joinpath(self.build_dir, "{}-{}-{}".format(u.name, u.version, u.id)),
-                    u.id
-                )
+            name = self.backend_engine.format_image_name(
+                Path.joinpath(self.build_dir, "{}-{}-{}".format(u.name, u.version, u.id)), u.id
+            )
             self._build_image(u, last, name)
-            if not self.dry_run and self.remove_tags and last is not None:
-                run(self.backend_engine.clean_up_old_image_tag(last))
             last = name
+            build_names.append(name)
+
+        tag = str(
+            self.build_name
+            if self.build_name is not None
+            else "{}__{}-{}".format(
+                "_".join(f"{bu.name}-{bu.version}" for bu in reversed(self.build_units)),
+                config.get("velocity:system"),
+                config.get("velocity:distro"),
+            )
+        )
+
+        final_name = self.backend_engine.format_image_name(Path(pwd.absolute()), tag)
+        if not self.dry_run:
+            run(self.backend_engine.generate_final_image_cmd(last, final_name))
+        header_print([TextBlock("BUILT: "), TextBlock(final_name, fore=Fore.MAGENTA, style=Style.BRIGHT)])
+
+        if not self.dry_run and self.remove_tags:
+            for bn in build_names:
+                run(self.backend_engine.clean_up_old_image_tag(bn))
 
         # go back to the starting dir
         os.chdir(pwd)
@@ -196,8 +207,10 @@ class ImageBuilder:
         script_variables.update(
             {"__threads__": str(int(os.cpu_count() * 0.75) if int(os.cpu_count() * 0.75) < 16 else 16)}
         )
+        script_variables.update({"__arch__": arch()})
         if src_image is not None:
             script_variables.update({"__base__": src_image})
+        script_variables.update(self.variables)
 
         script = self.backend_engine.generate_script(unit, script_variables)
         # write out script
