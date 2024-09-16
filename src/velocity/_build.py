@@ -101,6 +101,10 @@ class ImageBuilder:
         self.variables: dict[str, str] = dict()
         for i in self.build_units:
             self.variables["__{}__version__".format(i.name)] = i.version.__str__()
+            self.variables["__{}__version_major__".format(i.name)] = i.version.major.__str__()
+            self.variables["__{}__version_minor__".format(i.name)] = i.version.minor.__str__()
+            self.variables["__{}__version_patch__".format(i.name)] = i.version.patch.__str__()
+            self.variables["__{}__version_suffix__".format(i.name)] = i.version.suffix.__str__()
 
     def build(self) -> None:
         """Launch image builds."""
@@ -203,6 +207,10 @@ class ImageBuilder:
         script_variables = unit.variables.copy()
         script_variables.update({"__name__": unit.name})
         script_variables.update({"__version__": str(unit.version)})
+        script_variables.update({"__version_major__": str(unit.version.major)})
+        script_variables.update({"__version_minor__": str(unit.version.minor)})
+        script_variables.update({"__version_patch__": str(unit.version.patch)})
+        script_variables.update({"__version_suffix__": str(unit.version.suffix)})
         script_variables.update({"__timestamp__": str(datetime.datetime.now())})
         script_variables.update(
             {"__threads__": str(int(os.cpu_count() * 0.75) if int(os.cpu_count() * 0.75) < 16 else 16)}

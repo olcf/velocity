@@ -44,6 +44,7 @@ build_parser.add_argument(
     "-l", "--leave-tags", action="store_true", help="do not clean up intermediate build tags (only applies to podman)"
 )
 build_parser.add_argument("-v", "--verbose", action="store_true", help="print helpful debug/runtime information")
+build_parser.add_argument("-c", "--clean", action="store_true", help="run clean build (delete cached builds)")
 
 # create avail_parser
 avail_parser = sub_parsers.add_parser("avail", help="lookup available images")
@@ -99,7 +100,12 @@ if args.subcommand == "build":
 
     # prep builder
     builder = ImageBuilder(
-        recipe, build_name=args.name, dry_run=args.dry_run, remove_tags=not args.leave_tags, verbose=args.verbose
+        recipe,
+        build_name=args.name,
+        dry_run=args.dry_run,
+        remove_tags=not args.leave_tags,
+        verbose=args.verbose,
+        clean_build_dir=args.clean
     )
 
     # build
