@@ -3,7 +3,7 @@ requires = [ "setuptools>=61.0" ]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "velocity"
+name = "olcf-velocity"
 version = "0.1.0-rc1"
 authors = [
     { name="Asa"}
@@ -14,8 +14,8 @@ dependencies = [
     "pyyaml",
     "networkx",
     "colorama",
-    "editor",
-    "loguru"
+    "loguru",
+    "typing_extensions"
 ]
 
 [project.urls]

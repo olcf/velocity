@@ -2,11 +2,10 @@
 
 import argparse
 import sys
-from docutils.parsers.rst.directives.images import Image
 from loguru import logger
 from importlib.metadata import version
 from colorama import Fore, Style
-from ._graph import ImageRepo
+from ._graph import ImageRepo, Image
 from ._build import ImageBuilder
 from ._print import header_print, indent_print, TextBlock, bare_print
 from ._config import config
@@ -95,7 +94,7 @@ if args.subcommand == "build":
     # print build specs
     header_print([TextBlock("Build Order:")])
     for r in recipe:
-        indent_print([TextBlock(f"{r.name}@{r.version}", fore=Fore.MAGENTA, style=Style.BRIGHT)])
+        indent_print([TextBlock(f"{r.name}@{r.version}-{r.id}", fore=Fore.MAGENTA, style=Style.BRIGHT)])
     print()  # newline
 
     # prep builder
@@ -157,7 +156,7 @@ elif args.subcommand == "spec":
         spec = ""
         for _ in rs:
             if _.satisfies(seed):
-                spec = "{}@{}".format(_.name, _.version)
+                spec = "{}@{}-{}".format(_.name, _.version, _.id)
         print("  " + "   " * indent, end="")
         if indent == 0:
             bare_print(

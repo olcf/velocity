@@ -278,7 +278,7 @@ class Image:
         hash_list.append(",".join(str(x) for x in self.dependencies))
         hash_list.append(",".join(str(x) for x in self.variables))
         hash_list.append(",".join(str(x) for x in self.arguments))
-        tf = Path(self.path).joinpath("templates", self.template)
+        tf = Path(self.path).joinpath("templates", "{}.vtmp".format(self.template))
         if tf.is_file():
             hash_list.append(sha256(tf.read_bytes()).hexdigest())
         else:
