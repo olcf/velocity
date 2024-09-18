@@ -4,8 +4,10 @@
    contain the root `toctree` directive.
 
 
-Velocity Container Build System
-===============================
+Velocity Container Build Management
+===================================
+Velocity is a tool to help with the maintenance of container build scripts on multiple systems, backends
+(e.g podman or apptainer) and distros.
 
 .. toctree::
    :maxdepth: 2

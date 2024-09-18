@@ -6,16 +6,14 @@ This page describes the steps that velocity goes through when building an image.
 
 Setup
 #####
-After selecting images to build and ordering them. Velocity will start by assigning a random
-id to each image to be built. It will also create a directory BSD (Build Sub Dir) named with that random id in
-`VELOCITY_BUILD_DIR`.
+After selecting images to build and ordering them Velocity will also create a directory BSD (Build Sub Dir)
+named ``<name>-<version>-<hash>`` in build directory.
 
 .. _files:
 
 Files
 #####
-Next Velocity will look for a folder in the image definition directory with the same name as `VELOCITY_SYSTEM`. All
-of the files in this directory will be copied to the BSD.
+Next Velocity will copy any files that you specified.
 
 Parse Template
 ##############
@@ -32,18 +30,20 @@ Finally velocity will run the `build` script and log the output to a file called
 
 Build Directory Layout
 ######################
-At the end of a build `VELOCITY_BUILD_DIR` should look somthing like this. With the addition of any other files that
+At the end of a build the build dir should look somthing like this. With the addition of any other files that
 got copied in the :ref:`files<files>` step.
 
 .. code-block:: bash
 
     .
-    ├── jknqsnkc
-    │   ├── build
-    │   ├── log
-    │   └── script
-    └── nfhmhmsh
+    ├── fedora-41-8a9a360
+    │ ├── 8a9a360.sif
+    │ ├── build
+    │ ├── log
+    │ └── script
+    └── hello-world-1.0-de9c02b
         ├── build
+        ├── de9c02b.sif
+        ├── hello_world.py
         ├── log
         └── script
-

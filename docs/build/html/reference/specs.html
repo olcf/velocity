@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Specs.yaml &mdash; Velocity  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+    <link rel="shortcut icon" href="../_static/icon.png"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Build Process" href="build.html" />
+    <link rel="prev" title="VTMP Format" href="vtmp.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #909d9e" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Velocity
+              <img src="../_static/icon.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../starting/index.html">Getting Started</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Docs</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vtmp.html">VTMP Format</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Specs.yaml</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#about">About</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#config-options">Config Options</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#versions">versions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#dependencies">dependencies</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#templates">templates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#arguments">arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#variables">variables</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#files">files</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#prologs">prologs</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#using-when">Using <code class="docutils literal notranslate"><span class="pre">when</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="build.html">Build Process</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #909d9e" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Velocity</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Technical Docs</a></li>
+      <li class="breadcrumb-item active">Specs.yaml</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/reference/specs.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="specs-yaml">
+<h1>Specs.yaml<a class="headerlink" href="#specs-yaml" title="Link to this heading"></a></h1>
+<section id="about">
+<h2>About<a class="headerlink" href="#about" title="Link to this heading"></a></h2>
+<p>The <cite>specs.yaml</cite> file defines image availability, dependencies and a number of other available
+options for an image.</p>
+</section>
+<section id="config-options">
+<h2>Config Options<a class="headerlink" href="#config-options" title="Link to this heading"></a></h2>
+<section id="versions">
+<h3>versions<a class="headerlink" href="#versions" title="Link to this heading"></a></h3>
+<p>The <cite>versions</cite> section defines a list of versions and their availability.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">versions</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">spec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">45</span>
+<span class="w">    </span><span class="nt">when</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">distro=ubuntu</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">46</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">47</span>
+<span class="w">    </span><span class="nt">when</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">backend=podman</span>
+</pre></div>
+</div>
+</section>
+<section id="dependencies">
+<h3>dependencies<a class="headerlink" href="#dependencies" title="Link to this heading"></a></h3>
+<p>The <cite>dependencies</cite> section is used to specify prerequist images.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">dependencies</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">spec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu</span>
+<span class="w">    </span><span class="nt">when</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">distro=ubuntu</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;gcc@12:&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytorch</span>
+<span class="w">    </span><span class="nt">when</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">myapp@:2.3</span>
+</pre></div>
+</div>
+</section>
+<section id="templates">
+<h3>templates<a class="headerlink" href="#templates" title="Link to this heading"></a></h3>
+<p>By default velocity looks for a template called <code class="docutils literal notranslate"><span class="pre">default.vtmp</span></code>, but using the <cite>templates</cite> section you can specify an
+alternate template.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">templates</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">second_tmp</span>
+<span class="w">    </span><span class="nt">when</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;myapp@2:&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="arguments">
+<span id="id1"></span><h3>arguments<a class="headerlink" href="#arguments" title="Link to this heading"></a></h3>
+<p>Use the <cite>argument</cite> section to add build time arguments to an image.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">arguments</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">--disable-cache</span>
+<span class="w">    </span><span class="nt">when</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">backend=apptainer</span>
+</pre></div>
+</div>
+</section>
+<section id="variables">
+<span id="specvariables"></span><h3>variables<a class="headerlink" href="#variables" title="Link to this heading"></a></h3>
+<p>Use the <cite>variables</cite> section to set template variables.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">variables</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test_var</span>
+<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Test</span><span class="nv"> </span><span class="s">value.&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="files">
+<h3>files<a class="headerlink" href="#files" title="Link to this heading"></a></h3>
+<p>Use the <cite>files</cite> section to specify files or directories in the <cite>files</cite> folder that you want copied to the build directory.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">files</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">config.json</span>
+</pre></div>
+</div>
+</section>
+<section id="prologs">
+<h3>prologs<a class="headerlink" href="#prologs" title="Link to this heading"></a></h3>
+<p>Use the <cite>prologs</cite> section to bash commands that you want to run before the build.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">prologs</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">      </span><span class="no">git clone ...</span>
+<span class="w">    </span><span class="nt">when</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">system=summit</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="using-when">
+<h2>Using <code class="docutils literal notranslate"><span class="pre">when</span></code><a class="headerlink" href="#using-when" title="Link to this heading"></a></h2>
+<p>A few notes about using <code class="docutils literal notranslate"><span class="pre">when</span></code> to filter config options. The <code class="docutils literal notranslate"><span class="pre">when</span></code> option can be used to filter configs as shown
+above by system, backend, distro and dependencies. The only exception to this is the <cite>versions</cite> section which cannot
+be filtered by dependencies. List each item that you want to filter by separated by a space e.g. <code class="docutils literal notranslate"><span class="pre">gcc&#64;12.3</span> <span class="pre">system=frontier</span></code>.
+Additionally you can specify the scope of a <code class="docutils literal notranslate"><span class="pre">when</span></code> by specifying the <code class="docutils literal notranslate"><span class="pre">scope</span></code>. The default scope is <code class="docutils literal notranslate"><span class="pre">image</span></code> which means
+that the when statement is evaluated on the current image. So say you want to apply a config in the gcc <cite>specs.yaml</cite> file
+to every gcc version greater than 10.3.0, you would use <code class="docutils literal notranslate"><span class="pre">when:</span> <span class="pre">^ubuntu:</span></code>. Alternatively you can set the scope to <code class="docutils literal notranslate"><span class="pre">build</span></code>
+when you want the when statement evaluated on the current build.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">variable</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TEST</span>
+<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">3</span><span class="nv"> </span><span class="s">4&quot;</span>
+<span class="w">    </span><span class="nt">when</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu</span>
+<span class="w">    </span><span class="nt">scope</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build</span>
+</pre></div>
+</div>
+<p>This can be read as “If the ubuntu image is in the current set of images to be built then add the TEST variable.”</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="vtmp.html" class="btn btn-neutral float-left" title="VTMP Format" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="build.html" class="btn btn-neutral float-right" title="Build Process" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, OLCF.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

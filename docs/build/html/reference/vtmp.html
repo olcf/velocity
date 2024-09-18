@@ -22,8 +22,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Specifications.yaml" href="specifications.html" />
-    <link rel="prev" title="Technical Docs" href="index.html" /> 
+    <link rel="next" title="Specs.yaml" href="specs.html" />
+    <link rel="prev" title="Configuration" href="config.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -51,12 +51,14 @@
 </ul>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Technical Docs</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Configuration</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">VTMP Format</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#variables">Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#arguments">Arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#conditionals">Conditionals</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sections">Sections</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#from">&#64;from</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#pre">&#64;pre</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#arg">&#64;arg</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#copy">&#64;copy</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#run">&#64;run</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#env">&#64;env</a></li>
@@ -65,10 +67,9 @@
 <li class="toctree-l4"><a class="reference internal" href="#post">&#64;post</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#conditionals">Conditionals</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="specifications.html">Specifications.yaml</a></li>
+<li class="toctree-l2"><a class="reference internal" href="specs.html">Specs.yaml</a></li>
 <li class="toctree-l2"><a class="reference internal" href="build.html">Build Process</a></li>
 </ul>
 </li>
@@ -102,73 +103,91 @@
   <section id="vtmp-format">
 <h1>VTMP Format<a class="headerlink" href="#vtmp-format" title="Link to this heading"></a></h1>
 <p>VTMP files are used by Velocity to generate the appropriate script for a particular backend.
-While certain features are supported across all backends, others are exclusive to one backend and many are interpreted
-quite differently between the different backends. The goal of the VTMP files are to provide a unified API for
+The goal of the VTMP files are to provide a unified API for
 container images across multiple backends but they are not feature exhaustive.
 VTMP files are split up into a number of sections.</p>
 <div class="literal-block-wrapper docutils container" id="id2">
 <div class="code-block-caption"><span class="caption-text">Example VTMP</span><a class="headerlink" href="#id2" title="Link to this code"></a></div>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>@from
-    # can only take one of these
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>&gt;&gt;&gt; this is a comment
+@from
+    &gt;&gt;&gt; can only take one of these examples
     docker.io/ubuntu:20.04
-    /example.sif # only works for apptainer backend
-    %(__base__)
+    /example.sif    &gt;&gt;&gt; only works for apptainer backend
+    {{ __base__ }}  &gt;&gt;&gt; build on the previous image
 
-@pre # same as post but placed right after @from
-    # anything here is taken literally
-    # denote the start of a line with |
-    |echo &#39;Without tab&#39;
+@pre
+    &gt;&gt;&gt; anything here is taken literally
+    &gt;&gt;&gt; optionally denote the start of a line with | (helpful for white space)
+    echo &#39;Without tab&#39;
     |    echo &#39;With tab&#39;
 
-@arg
-    # define arg names
-    example_arg # reference this argument throughout the script with @(&lt;arg&gt;)
-
 @copy
-    # list files to copy, format &lt;src&gt; &lt;dest&gt;
+    &gt;&gt;&gt; list files to copy, format &lt;src&gt; &lt;dest&gt;
     /external/file /internal/file
 
 @run
-    # list of commands to run in container
+    &gt;&gt;&gt; list of commands to run in container
     echo &#39;Hello world&#39;
-    ?podman echo &#39;podman&#39;
-    ?apptainer echo &#39;apptainer&#39;
-    echo %(template_variable)
-    echo @(example_arg) # see @arg
+    ?? distro=podman |&gt; echo &#39;podman&#39; ??    &gt;&gt;&gt; conditional
+    ?? distro=apptainer |&gt; echo &#39;apptainer&#39; ??
+    echo {{ template_variable }}
+    echo @@ example_arg @@  &gt;&gt;&gt; define an argument
+    !envar TEST_VAR I want this here and in the @env section    &gt;&gt;&gt; the !envar directive
 
 @env
-    # set env variables
+    &gt;&gt;&gt; set env variables
     PATH /something:$PATH
 
 @label
-    # set container labels
-    velocity.image.%(__name__)__%(__tag__) %(__hash__)
-
+    &gt;&gt;&gt; set container labels
+    IMAGE_NAME {{ __name__ }}
 
 @entry
-    # set entrypoint or %runscript
-    # only one line allowed
+    &gt;&gt;&gt; set  ENTRYPOINT or %runscript
+    &gt;&gt;&gt; only one line allowed
+
     /bin/bash
 
-@post # same as pre but placed after everything else
+@post &gt;&gt;&gt; same as pre but placed after everything else
 </pre></div>
 </div>
 </div>
 <section id="variables">
 <span id="id1"></span><h2>Variables<a class="headerlink" href="#variables" title="Link to this heading"></a></h2>
 <p>The first thing that is done to a VTMP file is the substitution of any variables found in the script. Variables are indicated
-by <cite>%(&lt;variable&gt;)</cite>. In Velocity variables can be defined by the user in the <cite>specifications.yaml</cite> file, but Velocity also
+by <code class="docutils literal notranslate"><span class="pre">{{</span> <span class="pre">&lt;variable&gt;</span> <span class="pre">}}</span></code>. In Velocity variables can be defined by the user in the <cite>specs.yaml</cite> file, but Velocity also
 provides a set of build time variables.</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>__backend__
 __distro__
-__hash__        # template hash
-__base__        # previous image to build on
-__name__        # current image name e.g. cuda
+__base__        &gt;&gt;&gt; previous image to build on
+__name__        &gt;&gt;&gt; current image name e.g. cuda
 __system__
-__tag__         # image &quot;version&quot; e.g. 11.7.1
+__version__     &gt;&gt;&gt; image &quot;version&quot; e.g. 11.7.1
+__version_major__
+__version_minor__
+__version_patch__
+__version_suffix__
 __timestamp__
+&gt;&gt;&gt; the versions of all images in a build are also available in the following format
+__&lt;name&gt;__version__
+__&lt;name&gt;__version_major__
+__&lt;name&gt;__version_minor__
+__&lt;name&gt;__version_patch__
+__&lt;name&gt;__version_suffix__
 </pre></div>
 </div>
+</section>
+<section id="arguments">
+<h2>Arguments<a class="headerlink" href="#arguments" title="Link to this heading"></a></h2>
+<p>You can also pass in arguments at build time using the form <code class="docutils literal notranslate"><span class="pre">&#64;&#64;</span> <span class="pre">&lt;name&gt;</span> <span class="pre">&#64;&#64;</span></code>, but don’t forget to add the
+argument in <code class="docutils literal notranslate"><span class="pre">specs.yaml</span></code> so that is gets added to the build command or the build will fail.</p>
+</section>
+<section id="conditionals">
+<h2>Conditionals<a class="headerlink" href="#conditionals" title="Link to this heading"></a></h2>
+<p>If there is a line in a template that you only want under certain conditions use <code class="docutils literal notranslate"><span class="pre">??</span> <span class="pre">&lt;condition&gt;</span> <span class="pre">|&gt;</span> <span class="pre">&lt;text&gt;</span> <span class="pre">??</span></code>.
+The whole conditional will be replaced with the &lt;text&gt; section if the condition is true; otherwise, it will substitute
+an empty string. The conditionals can include the following components, <code class="docutils literal notranslate"><span class="pre">system=&lt;value&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">backend=&lt;value&gt;</span></code>,
+<code class="docutils literal notranslate"><span class="pre">distro=&lt;value&gt;</span></code> and a dependency in the form <code class="docutils literal notranslate"><span class="pre">^&lt;value&gt;</span></code>.</p>
 </section>
 <section id="sections">
 <h2>Sections<a class="headerlink" href="#sections" title="Link to this heading"></a></h2>
@@ -185,12 +204,6 @@ allows you to add white space to the beginning of a line. The only difference be
 are where they are placed in the script the <cite>&#64;pre</cite> section is placed at the beginning of the script
 right after the <cite>&#64;from</cite> section.</p>
 </section>
-<section id="arg">
-<h3>&#64;arg<a class="headerlink" href="#arg" title="Link to this heading"></a></h3>
-<p>The <cite>&#64;arg</cite> section specifies build time arguments that are passed to the backend. If these arguments are not passed to
-the backend at build time it will fail. Once an arg has been defined in the <cite>&#64;arg</cite> section it can be referenced
-throughout the script with <cite>&#64;(&lt;argument&gt;)</cite>.</p>
-</section>
 <section id="copy">
 <h3>&#64;copy<a class="headerlink" href="#copy" title="Link to this heading"></a></h3>
 <p>The <cite>&#64;copy</cite> section takes a list of files/dir to be copied in the &lt;src&gt; &lt;dest&gt; format.</p>
@@ -198,12 +211,14 @@ throughout the script with <cite>&#64;(&lt;argument&gt;)</cite>.</p>
 <section id="run">
 <h3>&#64;run<a class="headerlink" href="#run" title="Link to this heading"></a></h3>
 <p>The <cite>&#64;run</cite> section takes a list of commands to be run in the container. These commands should be written as if they all
-occur one after the other in the same shell.</p>
+occur one after the other in the same shell. One added feature to the &#64;run section is the <code class="docutils literal notranslate"><span class="pre">!envar</span></code> directive. This
+directive will add the following variable definition to the &#64;env section as well as to the current &#64;run section. Use
+the format <code class="docutils literal notranslate"><span class="pre">!envar</span> <span class="pre">&lt;name&gt;</span> <span class="pre">&lt;value&gt;</span></code>.</p>
 </section>
 <section id="env">
 <h3>&#64;env<a class="headerlink" href="#env" title="Link to this heading"></a></h3>
 <p>The <cite>&#64;env</cite> section sets environment variables. These variables will only be available when the container is run or in
-the next build so if there is a variable that is needed in the run section you must declare it there as well.</p>
+the next build so if there is a variable that is needed in the run section use the <code class="docutils literal notranslate"><span class="pre">!envar</span></code> directive in the &#64;run section.</p>
 </section>
 <section id="label">
 <h3>&#64;label<a class="headerlink" href="#label" title="Link to this heading"></a></h3>
@@ -220,19 +235,14 @@ in the <cite>&#64;entry</cite> section.</p>
 <p>See <a class="reference internal" href="#pre-section"><span class="std std-ref">&#64;pre</span></a>. The <cite>&#64;post</cite> section is placed at the end of the script after all other sections.</p>
 </section>
 </section>
-<section id="conditionals">
-<h2>Conditionals<a class="headerlink" href="#conditionals" title="Link to this heading"></a></h2>
-<p>It is handy somtimes to be able to limit certain commands to a backend(s) this can be done by placing a <cite>?&lt;backend&gt;</cite>
-at the beginning of the line in question.</p>
-</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="index.html" class="btn btn-neutral float-left" title="Technical Docs" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="specifications.html" class="btn btn-neutral float-right" title="Specifications.yaml" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="config.html" class="btn btn-neutral float-left" title="Configuration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="specs.html" class="btn btn-neutral float-right" title="Specs.yaml" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

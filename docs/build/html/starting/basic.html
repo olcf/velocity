@@ -49,23 +49,13 @@
               <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Getting Started</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Overview</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#concept">Concept</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#how-it-works">How it Works</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#layout">Layout</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#installation">Installation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#configuration">Configuration</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#velocity-image-dir"><cite>VELOCITY_IMAGE_DIR</cite></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#velocity-system"><cite>VELOCITY_SYSTEM</cite></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#velocity-backend"><cite>VELOCITY_BACKEND</cite></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#velocity-distro"><cite>VELOCITY_DISTRO</cite></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#velocity-build-dir"><cite>VELOCITY_BUILD_DIR</cite></a></li>
-</ul>
-</li>
+<li class="toctree-l3"><a class="reference internal" href="#configuration">Configuration</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#basic-usage">Basic Usage</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#avail"><cite>avail</cite></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#spec"><cite>spec</cite></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#build"><cite>build</cite></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#edit"><cite>edit</cite></a></li>
 </ul>
 </li>
 </ul>
@@ -105,111 +95,73 @@
              
   <section id="overview">
 <h1>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h1>
-<section id="concept">
-<h2>Concept<a class="headerlink" href="#concept" title="Link to this heading"></a></h2>
-<p>Velocity is a tool to help with the maintenance of a variety of container builds on multiple systems, backends
-(e.g podman or apptainer) and distros.</p>
-</section>
 <section id="how-it-works">
 <h2>How it Works<a class="headerlink" href="#how-it-works" title="Link to this heading"></a></h2>
-<p>Velocity works by building a set of containers in a chain so that the final container has all of the needed components.</p>
-</section>
-<section id="layout">
-<h2>Layout<a class="headerlink" href="#layout" title="Link to this heading"></a></h2>
-<p>The contents of the Velocity repo are fairly simple.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>.
-├── docs
-├── lib
-├── README.md
-├── setup-env.sh
-└── velocity
-</pre></div>
-</div>
-<p>For informational purposes there is a folder <cite>docs</cite> which holds this documentation and a README file.
-The <cite>setup-env.sh</cite> script can be used to ‘install’ velocity. The lib folder holds a python package which the
-velocity script needs to run.</p>
+<p>Velocity works by building a set of containers in a chain so that the final container has all of the needed components.
+Velocity maintains a very hands off approach. It is only as good as the templates/configuration that you write.
+In general it will assume that a particular build will work unless you tell it otherwise. It is important to note
+that while Velocity has many features that are similar to those provided by a package manager, it is NOT a
+package manager. Rather it should be viewed as a templating and build orchestration tool.</p>
 </section>
 <section id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
-<p>First you will need to set up a conda environment for Velocity and install the following packages:</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>For more info on creating a custom conda environment on OLCF systems visit <a class="reference external" href="https://docs.olcf.ornl.gov/software/python/index.html#custom-environments">https://docs.olcf.ornl.gov/software/python/index.html#custom-environments</a>.</p>
-</div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">install</span> <span class="n">pyyaml</span> <span class="n">networkx</span> <span class="n">colorama</span> <span class="n">python</span><span class="o">-</span><span class="n">editor</span>
+<p>The easiest way to install velocity is to install prebuilt python packages using pip.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>olcf-velocity
 </pre></div>
 </div>
-<div class="admonition important">
-<p class="admonition-title">Important</p>
-<p>If you wish to build the docs you will also need to install <cite>sphinx</cite> and <cite>sphinx-rtd-theme</cite>.</p>
-</div>
-<p>Next clone the Velocity git repository to the desired location.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://gitlab.ccs.ornl.gov/saue-software/velocity.git
+<p>You can also clone the velocity repository and build/install velocity from source.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/olcf/velocity.git
+<span class="nb">cd</span><span class="w"> </span>velocity
+python3<span class="w"> </span>-m<span class="w"> </span>build
+<span class="c1"># install the built python wheel package</span>
+pip<span class="w"> </span>install<span class="w"> </span>dist/olcf-velocity-&lt;version&gt;*.whl
 </pre></div>
 </div>
-<p>You can then setup Velocity by sourcing the <cite>setup-env.sh</cite> script.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>.<span class="w"> </span>./velocity/setup-env.sh
-</pre></div>
-</div>
-<p>The <cite>setup-env.sh</cite> script will help you choose the value of several environment <a class="reference internal" href="#configuration"><span class="std std-ref">variables</span></a>
-that velocity uses.</p>
-<p>You should now be able to run the <cite>velocity</cite> command.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>user@hostname:~$<span class="w"> </span><span class="nv">velocity</span>
-<span class="o">==</span>&gt;<span class="w"> </span>System:<span class="w"> </span><span class="nv">x86_64</span>
-<span class="o">==</span>&gt;<span class="w"> </span>Backend:<span class="w"> </span><span class="nv">podman</span>
-<span class="o">==</span>&gt;<span class="w"> </span>Distro:<span class="w"> </span>fedora
+<p>Now you can use Velocity as a python module! We recommend setting a bash alias for convenience.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>user@hostname:~$<span class="w"> </span><span class="nb">alias</span><span class="w"> </span><span class="nv">velocity</span><span class="o">=</span><span class="s2">&quot;python3 -m velocity&quot;</span>
+user@hostname:~$<span class="w"> </span>velocity
+usage:<span class="w"> </span>velocity<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>-v<span class="o">]</span><span class="w"> </span><span class="o">[</span>-D<span class="w"> </span><span class="o">{</span>TRACE,DEBUG,INFO,SUCCESS,WARNING,ERROR,CRITICAL<span class="o">}]</span><span class="w"> </span><span class="o">[</span>-b<span class="w"> </span>BACKEND<span class="o">]</span><span class="w"> </span><span class="o">[</span>-s<span class="w"> </span>SYSTEM<span class="o">]</span><span class="w"> </span><span class="o">[</span>-d<span class="w"> </span>DISTRO<span class="o">]</span><span class="w"> </span><span class="o">{</span>build,avail,spec<span class="o">}</span><span class="w"> </span>...
 
-usage:<span class="w"> </span>velocity<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>-v<span class="o">]</span><span class="w"> </span><span class="o">[</span>-b<span class="w"> </span>BACKEND<span class="o">]</span><span class="w"> </span><span class="o">[</span>-s<span class="w"> </span>SYSTEM<span class="o">]</span><span class="w"> </span><span class="o">[</span>-d<span class="w"> </span>DISTRO<span class="o">]</span>
-<span class="w">                </span><span class="o">{</span>build,avail,spec,edit<span class="o">}</span><span class="w"> </span>...
-
-Build<span class="w"> </span>tool<span class="w"> </span><span class="k">for</span><span class="w"> </span>OLCF<span class="w"> </span>containers
+build<span class="w"> </span>tool<span class="w"> </span><span class="k">for</span><span class="w"> </span>OLCF<span class="w"> </span>containers
 
 positional<span class="w"> </span>arguments:
-<span class="w">  </span><span class="o">{</span>build,avail,spec,edit<span class="o">}</span>
+<span class="w">  </span><span class="o">{</span>build,avail,spec<span class="o">}</span>
 <span class="w">    </span>build<span class="w">               </span>build<span class="w"> </span>specified<span class="w"> </span>container<span class="w"> </span>image
 <span class="w">    </span>avail<span class="w">               </span>lookup<span class="w"> </span>available<span class="w"> </span>images
 <span class="w">    </span>spec<span class="w">                </span>lookup<span class="w"> </span>image<span class="w"> </span>dependencies
-<span class="w">    </span>edit<span class="w">                </span>edit<span class="w"> </span>image<span class="w"> </span>files
 
 options:
 <span class="w">  </span>-h,<span class="w"> </span>--help<span class="w">            </span>show<span class="w"> </span>this<span class="w"> </span><span class="nb">help</span><span class="w"> </span>message<span class="w"> </span>and<span class="w"> </span><span class="nb">exit</span>
 <span class="w">  </span>-v,<span class="w"> </span>--version<span class="w">         </span>program<span class="w"> </span>version
+<span class="w">  </span>-D<span class="w"> </span><span class="o">{</span>TRACE,DEBUG,INFO,SUCCESS,WARNING,ERROR,CRITICAL<span class="o">}</span>,<span class="w"> </span>--debug<span class="w"> </span><span class="o">{</span>TRACE,DEBUG,INFO,SUCCESS,WARNING,ERROR,CRITICAL<span class="o">}</span>
+<span class="w">                        </span><span class="nb">set</span><span class="w"> </span>debug<span class="w"> </span>output<span class="w"> </span>level
 <span class="w">  </span>-b<span class="w"> </span>BACKEND,<span class="w"> </span>--backend<span class="w"> </span>BACKEND
 <span class="w">  </span>-s<span class="w"> </span>SYSTEM,<span class="w"> </span>--system<span class="w"> </span>SYSTEM
 <span class="w">  </span>-d<span class="w"> </span>DISTRO,<span class="w"> </span>--distro<span class="w"> </span>DISTRO
 
-See<span class="w"> </span><span class="o">(</span>https://gitlab.ccs.ornl.gov/saue-software/velocity<span class="o">)</span>
+See<span class="w"> </span>https://github.com/olcf/velocity
 </pre></div>
 </div>
 </section>
 <section id="configuration">
 <span id="id1"></span><h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
-<p>There are five system variables that need to be set for Velocity to work (these are set in the <cite>setup-env.sh</cite> script).</p>
-<section id="velocity-image-dir">
-<h3><cite>VELOCITY_IMAGE_DIR</cite><a class="headerlink" href="#velocity-image-dir" title="Link to this heading"></a></h3>
-<p>This variable points to the directory containing the the image definitions.</p>
+<p>Velocity has a number of configuration options. The basic ones are setting the system name, container backend,
+container distro, the path(s) to your image definitions and the build scratch directory.
+To see more configuration options go to the <a class="reference internal" href="../reference/config.html"><span class="doc">configuration</span></a> page. The easiest way to configure velocity is to
+edit <code class="docutils literal notranslate"><span class="pre">~/.velocity/config.yaml</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">velocity</span><span class="p">:</span>
+  <span class="n">system</span><span class="p">:</span> <span class="n">frontier</span>
+  <span class="n">backend</span><span class="p">:</span> <span class="n">apptainer</span>
+  <span class="n">distro</span><span class="p">:</span> <span class="n">ubuntu</span>
+  <span class="n">image_path</span><span class="p">:</span> <span class="c1"># a list of : seperated paths</span>
+  <span class="n">build_dir</span><span class="p">:</span> <span class="c1"># path to a scratch space</span>
+</pre></div>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Image definitions can be created by the user as needed but a base set for usage at OLCF are provided at
-<cite>https://gitlab.ccs.ornl.gov/saue-software/velocity-images.git</cite></p>
+<a class="reference external" href="https://github.com/olcf/velocity-images">https://github.com/olcf/velocity-images</a></p>
 </div>
-</section>
-<section id="velocity-system">
-<h3><cite>VELOCITY_SYSTEM</cite><a class="headerlink" href="#velocity-system" title="Link to this heading"></a></h3>
-<p>This variable specifies what computer system you are building for (e.g. frontier).</p>
-</section>
-<section id="velocity-backend">
-<h3><cite>VELOCITY_BACKEND</cite><a class="headerlink" href="#velocity-backend" title="Link to this heading"></a></h3>
-<p>This variable specifies the container backend that should be used (e.g podman).</p>
-</section>
-<section id="velocity-distro">
-<h3><cite>VELOCITY_DISTRO</cite><a class="headerlink" href="#velocity-distro" title="Link to this heading"></a></h3>
-<p>This variable specifies the distro of the container images that will be built.</p>
-</section>
-<section id="velocity-build-dir">
-<h3><cite>VELOCITY_BUILD_DIR</cite><a class="headerlink" href="#velocity-build-dir" title="Link to this heading"></a></h3>
-<p>This variable specifies a scratch space for Velocity to preform builds in.</p>
-</section>
 </section>
 <section id="basic-usage">
 <h2>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading"></a></h2>
@@ -217,60 +169,45 @@ See<span class="w"> </span><span class="o">(</span>https://gitlab.ccs.ornl.gov/s
 <h3><cite>avail</cite><a class="headerlink" href="#avail" title="Link to this heading"></a></h3>
 <p>The <cite>avail</cite> command prints the defined images that can be built.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>user@hostname:~$<span class="w"> </span>velocity<span class="w"> </span><span class="nv">avail</span>
-<span class="o">==</span>&gt;<span class="w"> </span>System:<span class="w"> </span><span class="nv">x86_64</span>
-<span class="o">==</span>&gt;<span class="w"> </span>Backend:<span class="w"> </span><span class="nv">podman</span>
-<span class="o">==</span>&gt;<span class="w"> </span>Distro:<span class="w"> </span><span class="nv">centos</span>
-
-<span class="o">==</span>&gt;<span class="w"> </span>centos
-<span class="w">        </span><span class="nv">stream8</span>
 <span class="o">==</span>&gt;<span class="w"> </span>gcc
-<span class="w">        </span><span class="m">11</span>.2.0
-<span class="o">==</span>&gt;<span class="w"> </span>hmmer
-<span class="w">        </span><span class="m">3</span>.4
-<span class="o">==</span>&gt;<span class="w"> </span>kalign
-<span class="w">        </span><span class="m">3</span>.4.0
-<span class="o">==</span>&gt;<span class="w"> </span>miniforge3
-<span class="w">        </span><span class="m">23</span>.11.0
-<span class="o">==</span>&gt;<span class="w"> </span>python
-<span class="w">        </span><span class="m">3</span>.11.8
-<span class="o">==</span>&gt;<span class="w"> </span>pytorch
-<span class="w">        </span>latest
+<span class="w">    </span><span class="m">12</span>.3.0
+<span class="w">    </span><span class="m">13</span>.2.0
+<span class="w">    </span><span class="m">14</span>.1.0
+<span class="o">==</span>&gt;<span class="w"> </span>mpich
+<span class="w">    </span><span class="m">3</span>.4.3
+<span class="o">==</span>&gt;<span class="w"> </span>rocm
+<span class="w">    </span><span class="m">5</span>.7.1
+<span class="o">==</span>&gt;<span class="w"> </span>ubuntu
+<span class="w">    </span><span class="m">20</span>.04
+<span class="w">    </span><span class="m">22</span>.04
+<span class="w">    </span><span class="m">24</span>.04
 </pre></div>
 </div>
-<p>Each image is listed and then indented underneath is a list of the available versions
-(in velocity they are called tags).</p>
+<p>Each image is listed and then indented underneath is a list of the available versions.</p>
 </section>
 <section id="spec">
 <h3><cite>spec</cite><a class="headerlink" href="#spec" title="Link to this heading"></a></h3>
 <p>The <cite>spec</cite> command shows the dependencies for a given image (or list of images) in a tree like structure.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>user@hostname:~$<span class="w"> </span>velocity<span class="w"> </span>spec<span class="w"> </span><span class="nv">pytorch</span>
-<span class="o">==</span>&gt;<span class="w"> </span>System:<span class="w"> </span><span class="nv">summit</span>
-<span class="o">==</span>&gt;<span class="w"> </span>Backend:<span class="w"> </span><span class="nv">podman</span>
-<span class="o">==</span>&gt;<span class="w"> </span>Distro:<span class="w"> </span>centos
-
-<span class="w">  </span>&gt;<span class="w"> </span>pytorch@<span class="o">=</span>latest
-<span class="w">     </span>^cuda@<span class="o">=</span><span class="m">11</span>.7.1
-<span class="w">        </span>^centos@<span class="o">=</span>stream8
-<span class="w">     </span>^cudnn@<span class="o">=</span><span class="m">8</span>.5.0.96
-<span class="w">        </span>^cuda@<span class="o">=</span><span class="m">11</span>.7.1
-<span class="w">           </span>^centos@<span class="o">=</span>stream8
-<span class="w">     </span>^spectrum-mpi@<span class="o">=</span><span class="m">10</span>.4.0.6
-<span class="w">        </span>^centos@<span class="o">=</span>stream8
-<span class="w">     </span>^gcc@<span class="o">=</span><span class="m">11</span>.2.0
-<span class="w">        </span>^centos@<span class="o">=</span>stream8
-<span class="w">     </span>^miniforge3@<span class="o">=</span><span class="m">23</span>.11.0
-<span class="w">        </span>^centos@<span class="o">=</span>stream8
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>user@hostname:~$<span class="w"> </span>velocity<span class="w"> </span>spec<span class="w"> </span>pytorch
+<span class="w">  </span>&gt;<span class="w"> </span>pytorch@latest
+<span class="w">     </span>^cuda@11.7.1
+<span class="w">        </span>^centos@stream8
+<span class="w">     </span>^cudnn@8.5.0.96
+<span class="w">        </span>^cuda@11.7.1
+<span class="w">           </span>^centos@stream8
+<span class="w">     </span>^spectrum-mpi@10.4.0.6
+<span class="w">        </span>^centos@stream8
+<span class="w">     </span>^gcc@11.2.0
+<span class="w">        </span>^centos@stream8
+<span class="w">     </span>^miniforge3@23.11.0
+<span class="w">        </span>^centos@stream8
 </pre></div>
 </div>
 </section>
 <section id="build">
 <h3><cite>build</cite><a class="headerlink" href="#build" title="Link to this heading"></a></h3>
-<p>The <cite>build</cite> can be used to build an container image from one or more image definitions.</p>
+<p>The <cite>build</cite> command can be used to build an container image from one or more image definitions.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>user@hostname:~$<span class="w"> </span>velocity<span class="w"> </span>build<span class="w"> </span><span class="nv">centos</span>
-<span class="o">==</span>&gt;<span class="w"> </span>System:<span class="w"> </span><span class="nv">x86_64</span>
-<span class="o">==</span>&gt;<span class="w"> </span>Backend:<span class="w"> </span><span class="nv">podman</span>
-<span class="o">==</span>&gt;<span class="w"> </span>Distro:<span class="w"> </span><span class="nv">centos</span>
-
 <span class="o">==</span>&gt;<span class="w"> </span>Build<span class="w"> </span>Order:
 <span class="w">        </span>centos@<span class="o">=</span><span class="nv">stream8</span>
 
@@ -282,10 +219,6 @@ See<span class="w"> </span><span class="o">(</span>https://gitlab.ccs.ornl.gov/s
 </div>
 <p>Both the spec and the build command can also take a list of images.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>user@hostname:~$<span class="w"> </span>velocity<span class="w"> </span>build<span class="w"> </span>gcc<span class="w"> </span><span class="nv">python</span>
-<span class="o">==</span>&gt;<span class="w"> </span>System:<span class="w"> </span><span class="nv">x86_64</span>
-<span class="o">==</span>&gt;<span class="w"> </span>Backend:<span class="w"> </span><span class="nv">podman</span>
-<span class="o">==</span>&gt;<span class="w"> </span>Distro:<span class="w"> </span><span class="nv">centos</span>
-
 <span class="o">==</span>&gt;<span class="w"> </span>Build<span class="w"> </span>Order:
 <span class="w">        </span>centos@<span class="o">=</span>stream8
 <span class="w">        </span>gcc@<span class="o">=</span><span class="m">11</span>.2.0
@@ -305,22 +238,6 @@ See<span class="w"> </span><span class="o">(</span>https://gitlab.ccs.ornl.gov/s
 <span class="o">==</span>&gt;<span class="w"> </span>sunflyhd:<span class="w"> </span>GENERATING<span class="w"> </span>SCRIPT<span class="w"> </span>...
 <span class="o">==</span>&gt;<span class="w"> </span>sunflyhd:<span class="w"> </span>BUILDING<span class="w"> </span>...
 <span class="o">==</span>&gt;<span class="w"> </span>sunflyhd:<span class="w"> </span>IMAGE<span class="w"> </span>localhost/python__3.11.8__x86_64__centos:latest<span class="w"> </span><span class="o">(</span>python@<span class="o">=</span><span class="m">3</span>.11.8<span class="o">)</span><span class="w"> </span>BUILT<span class="w"> </span><span class="o">[</span><span class="m">0</span>:23:19<span class="o">]</span>
-</pre></div>
-</div>
-</section>
-<section id="edit">
-<h3><cite>edit</cite><a class="headerlink" href="#edit" title="Link to this heading"></a></h3>
-<p>The edit command can be used to edit the VTMP or specification file for an image. By default
-it edits the VTMP file. Add <cite>-s</cite> to edit the <cite>specifications.yaml</cite> file.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>user@hostname:~$<span class="w"> </span>velocity<span class="w"> </span>edit<span class="w"> </span>--help
-usage:<span class="w"> </span>velocity<span class="w"> </span>edit<span class="w"> </span><span class="o">[</span>-h<span class="o">]</span><span class="w"> </span><span class="o">[</span>-s<span class="o">]</span><span class="w"> </span>target
-
-positional<span class="w"> </span>arguments:
-<span class="w">  </span>target<span class="w">               </span>image<span class="w"> </span>to<span class="w"> </span>edit
-
-options:
-<span class="w">  </span>-h,<span class="w"> </span>--help<span class="w">           </span>show<span class="w"> </span>this<span class="w"> </span><span class="nb">help</span><span class="w"> </span>message<span class="w"> </span>and<span class="w"> </span><span class="nb">exit</span>
-<span class="w">  </span>-s,<span class="w"> </span>--specification<span class="w">  </span>edit<span class="w"> </span>the<span class="w"> </span>specifications<span class="w"> </span>file
 </pre></div>
 </div>
 </section>

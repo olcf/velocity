@@ -8,6 +8,7 @@ Technical Docs
 .. toctree::
    :maxdepth: 2
 
+   config
    vtmp
-   specifications
+   specs
    build
