@@ -3,131 +3,82 @@
 Overview
 ********
 
-Concept
-#######
-Velocity is a tool to help with the maintenance of a variety of container builds on multiple systems, backends
-(e.g podman or apptainer) and distros.
-
 How it Works
 ############
 Velocity works by building a set of containers in a chain so that the final container has all of the needed components.
-
-
-Layout
-######
-The contents of the Velocity repo are fairly simple.
-
-.. code-block::
-
-    .
-    ├── docs
-    ├── lib
-    ├── README.md
-    ├── setup-env.sh
-    └── velocity
-
-For informational purposes there is a folder `docs` which holds this documentation and a README file.
-The `setup-env.sh` script can be used to 'install' velocity. The lib folder holds a python package which the
-velocity script needs to run.
-
-
-
+Velocity maintains a very hands off approach. It is only as good as the templates/configuration that you write.
+In general it will assume that a particular build will work unless you tell it otherwise. It is important to note
+that while Velocity has many features that are similar to those provided by a package manager, it is NOT a
+package manager. Rather it should be viewed as a templating and build orchestration tool.
 
 Installation
 ############
 
-First you will need to set up a conda environment for Velocity and install the following packages:
-
-.. note::
-
-    For more info on creating a custom conda environment on OLCF systems visit https://docs.olcf.ornl.gov/software/python/index.html#custom-environments.
-
-.. code-block::
-
-    conda install pyyaml networkx colorama python-editor
-
-.. important::
-
-    If you wish to build the docs you will also need to install `sphinx` and `sphinx-rtd-theme`.
-
-Next clone the Velocity git repository to the desired location.
+The easiest way to install velocity is to install prebuilt python packages using pip.
 
 .. code-block:: bash
 
-    git clone https://gitlab.ccs.ornl.gov/saue-software/velocity.git
+    pip install olcf-velocity
 
-You can then setup Velocity by sourcing the `setup-env.sh` script.
-
-.. code-block:: bash
-
-    . ./velocity/setup-env.sh
-
-The `setup-env.sh` script will help you choose the value of several environment :ref:`variables<configuration>`
-that velocity uses.
-
-You should now be able to run the `velocity` command.
+You can also clone the velocity repository and build/install velocity from source.
 
 .. code-block:: bash
 
+    git clone https://github.com/olcf/velocity.git
+    cd velocity
+    python3 -m build
+    # install the built python wheel package
+    pip install dist/olcf-velocity-<version>*.whl
+
+Now you can use Velocity as a python module! We recommend setting a bash alias for convenience.
+
+.. code-block:: bash
+
+    user@hostname:~$ alias velocity="python3 -m velocity"
     user@hostname:~$ velocity
-    ==> System: x86_64
-    ==> Backend: podman
-    ==> Distro: fedora
+    usage: velocity [-h] [-v] [-D {TRACE,DEBUG,INFO,SUCCESS,WARNING,ERROR,CRITICAL}] [-b BACKEND] [-s SYSTEM] [-d DISTRO] {build,avail,spec} ...
 
-    usage: velocity [-h] [-v] [-b BACKEND] [-s SYSTEM] [-d DISTRO]
-                    {build,avail,spec,edit} ...
-
-    Build tool for OLCF containers
+    build tool for OLCF containers
 
     positional arguments:
-      {build,avail,spec,edit}
+      {build,avail,spec}
         build               build specified container image
         avail               lookup available images
         spec                lookup image dependencies
-        edit                edit image files
 
     options:
       -h, --help            show this help message and exit
       -v, --version         program version
+      -D {TRACE,DEBUG,INFO,SUCCESS,WARNING,ERROR,CRITICAL}, --debug {TRACE,DEBUG,INFO,SUCCESS,WARNING,ERROR,CRITICAL}
+                            set debug output level
       -b BACKEND, --backend BACKEND
       -s SYSTEM, --system SYSTEM
       -d DISTRO, --distro DISTRO
 
-    See (https://gitlab.ccs.ornl.gov/saue-software/velocity)
-
+    See https://github.com/olcf/velocity
 
 .. _configuration:
 
 Configuration
 #############
-There are five system variables that need to be set for Velocity to work (these are set in the `setup-env.sh` script).
+Velocity has a number of configuration options. The basic ones are setting the system name, container backend,
+container distro, the path(s) to your image definitions and the build scratch directory.
+To see more configuration options go to the :doc:`configuration </reference/config>` page. The easiest way to configure velocity is to
+edit ``~/.velocity/config.yaml``.
 
-`VELOCITY_IMAGE_DIR`
---------------------
-This variable points to the directory containing the the image definitions.
+.. code-block::
+
+    velocity:
+      system: frontier
+      backend: apptainer
+      distro: ubuntu
+      image_path: # a list of : seperated paths
+      build_dir: # path to a scratch space
 
 .. note::
 
     Image definitions can be created by the user as needed but a base set for usage at OLCF are provided at
-    `https://gitlab.ccs.ornl.gov/saue-software/velocity-images.git`
-
-`VELOCITY_SYSTEM`
------------------
-This variable specifies what computer system you are building for (e.g. frontier).
-
-`VELOCITY_BACKEND`
-------------------
-This variable specifies the container backend that should be used (e.g podman).
-
-`VELOCITY_DISTRO`
------------------
-This variable specifies the distro of the container images that will be built.
-
-`VELOCITY_BUILD_DIR`
---------------------
-This variable specifies a scratch space for Velocity to preform builds in.
-
-
+    https://github.com/olcf/velocity-images
 
 Basic Usage
 ###########
@@ -140,27 +91,20 @@ The `avail` command prints the defined images that can be built.
 .. code-block:: bash
 
     user@hostname:~$ velocity avail
-    ==> System: x86_64
-    ==> Backend: podman
-    ==> Distro: centos
-
-    ==> centos
-            stream8
     ==> gcc
-            11.2.0
-    ==> hmmer
-            3.4
-    ==> kalign
-            3.4.0
-    ==> miniforge3
-            23.11.0
-    ==> python
-            3.11.8
-    ==> pytorch
-            latest
+        12.3.0
+        13.2.0
+        14.1.0
+    ==> mpich
+        3.4.3
+    ==> rocm
+        5.7.1
+    ==> ubuntu
+        20.04
+        22.04
+        24.04
 
-Each image is listed and then indented underneath is a list of the available versions
-(in velocity they are called tags).
+Each image is listed and then indented underneath is a list of the available versions.
 
 `spec`
 ------
@@ -170,37 +114,28 @@ The `spec` command shows the dependencies for a given image (or list of images) 
 .. code-block:: bash
 
     user@hostname:~$ velocity spec pytorch
-    ==> System: summit
-    ==> Backend: podman
-    ==> Distro: centos
-
-      > pytorch@=latest
-         ^cuda@=11.7.1
-            ^centos@=stream8
-         ^cudnn@=8.5.0.96
-            ^cuda@=11.7.1
-               ^centos@=stream8
-         ^spectrum-mpi@=10.4.0.6
-            ^centos@=stream8
-         ^gcc@=11.2.0
-            ^centos@=stream8
-         ^miniforge3@=23.11.0
-            ^centos@=stream8
-
+      > pytorch@latest
+         ^cuda@11.7.1
+            ^centos@stream8
+         ^cudnn@8.5.0.96
+            ^cuda@11.7.1
+               ^centos@stream8
+         ^spectrum-mpi@10.4.0.6
+            ^centos@stream8
+         ^gcc@11.2.0
+            ^centos@stream8
+         ^miniforge3@23.11.0
+            ^centos@stream8
 
 
 `build`
 -------
 
-The `build` can be used to build an container image from one or more image definitions.
+The `build` command can be used to build an container image from one or more image definitions.
 
 .. code-block:: bash
 
     user@hostname:~$ velocity build centos
-    ==> System: x86_64
-    ==> Backend: podman
-    ==> Distro: centos
-
     ==> Build Order:
             centos@=stream8
 
@@ -214,10 +149,6 @@ Both the spec and the build command can also take a list of images.
 .. code-block:: bash
 
     user@hostname:~$ velocity build gcc python
-    ==> System: x86_64
-    ==> Backend: podman
-    ==> Distro: centos
-
     ==> Build Order:
             centos@=stream8
             gcc@=11.2.0
@@ -237,20 +168,3 @@ Both the spec and the build command can also take a list of images.
     ==> sunflyhd: GENERATING SCRIPT ...
     ==> sunflyhd: BUILDING ...
     ==> sunflyhd: IMAGE localhost/python__3.11.8__x86_64__centos:latest (python@=3.11.8) BUILT [0:23:19]
-
-`edit`
-------
-The edit command can be used to edit the VTMP or specification file for an image. By default
-it edits the VTMP file. Add `-s` to edit the `specifications.yaml` file.
-
-.. code-block:: bash
-
-    user@hostname:~$ velocity edit --help
-    usage: velocity edit [-h] [-s] target
-
-    positional arguments:
-      target               image to edit
-
-    options:
-      -h, --help           show this help message and exit
-      -s, --specification  edit the specifications file

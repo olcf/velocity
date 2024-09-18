@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(
     epilog="See https://github.com/olcf/velocity",
 )
 parser.add_argument(
-    "-v", "--version", action="version", version=f"%(prog)s {version('velocity')}", help="program version"
+    "-v", "--version", action="version", version=f"%(prog)s {version('olcf-velocity')}", help="program version"
 )
 parser.add_argument(
     "-D",
