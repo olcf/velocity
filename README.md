@@ -3,15 +3,11 @@
 -----------------------------------------------------------
 
 ## Description
-A container build manager.
+Velocity is a tool to help with the maintenance of container build scripts on 
+multiple systems, backends (e.g podman or apptainer) and distros.
 
 ## Documentation
-Run:
-```commandline
-cd docs/build/html
-python3 -m http.server 8080
-```
-And then go to <http://localhost:8080>.
+See <https://olcf.github.io/velocity/>.
 
 ## Installation
 ``` commandline
