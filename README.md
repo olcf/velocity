@@ -1,4 +1,6 @@
-<h1><img align="center" height="50" src="misc/artwork/icon.drawio.png"> VELOCITY</h1>
+![icon.drawio.png](misc/artwork/icon_name.drawio.png)
+
+-----------------------------------------------------------
 
 ## Description
 A container build manager.
