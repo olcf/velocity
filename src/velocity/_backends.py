@@ -89,7 +89,7 @@ class Backend(ABC):
         res: re_Match[str] = re_match(r".*(\?\?([\S ]*)\|>(.*)\?\?).*", text)
         if res is not None:
             if image.satisfies(res.group(2)):
-                text = re_sub(r".*(\?\?.*\?\?).*", res.group(3), text)
+                text = re_sub(r"(\?\?.*\?\?)", res.group(3).strip(), text)
             else:
                 text = ""
 
@@ -290,7 +290,7 @@ class Podman(Backend):
                 ln += "    "
             ln += alt_cmd
             # add '&& \\' to all but the last line
-            if cmd != contents[-1]:
+            if cmd != contents[-1] and cmd[-1] != '\\': # ignore line that end in an escape
                 ln += " && \\"
             ret.append(ln)
         return ret
