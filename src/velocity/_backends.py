@@ -91,7 +91,7 @@ class Backend(ABC):
             if image.satisfies(res.group(2)):
                 text = re_sub(r"(\?\?.*\?\?)", res.group(3).strip(), text)
             else:
-                text = ""
+                text = re_sub(r"(\?\?.*\?\?)", "", text)
 
         # remove comments, newlines, and superfluous white space
         text = re_sub(r">>>.*", "", text)
