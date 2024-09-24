@@ -4,11 +4,25 @@ Creating Your First Image
 
 Base Image
 ##########
-Let's start with a simple base image. This image will pull an fedora docker image and update the packages. For this
-tutorial I have created the empty directory ``/tmp/velocity/images`` and configured it as the image directory. I have set
-the build directory to ``/tmp/velocity/build``, the backend to ``apptainer`` and the distro as ``fedora``. All
-commands are run in ``/tmp/velocity``.
-Start by creating a directory in the image directory called ``fedora``. In this directory create a file called
+Let's start with a simple base image. This image will pull an fedora docker image and update the packages. To setup
+your environment do something like this.
+
+
+.. code-block:: bash
+    :caption: Setup
+
+    TUTORIAL_DIR=/tmp/velocity
+    mkdir -p $TUTORIAL_DIR/images
+    export VELOCITY_IMAGE_PATH=$TUTORIAL_DIR/images
+    export VELOCITY_BUILD_DIR=$TUTORIAL_DIR/build
+    export VELOCITY_DISTRO=fedora
+    # all subsequent commands in this tutorial were run from the TUTORIAL_DIR, but they don't have to be
+
+.. note::
+
+    You will also need Apptainer installed on your system.
+
+Next create a directory in the ``images`` directory called ``fedora``. In this directory create a file called
 ``specs.yaml`` and a directory called ``templates`` with
 a file named ``default.vtmp``. Your image directory and files should now look like this.
 
@@ -44,7 +58,7 @@ Now if you run `velocity avail` you should get the following.
 
 .. code-block:: bash
 
-    user@hostname:~$ velocity avail
+    $ velocity avail
     ==> fedora
         38
 
@@ -52,7 +66,7 @@ Now build the image.
 
 .. code-block:: bash
 
-    user@hostname:~$ velocity build fedora
+    $ velocity build fedora
     ==> Build Order:
         fedora@38-aa51aa7
 
@@ -67,7 +81,7 @@ If you wish to see more output you can add the `-v` flag:
 
 .. code-block:: bash
 
-    user@hostname:~$ velocity build fedora -v
+    $ velocity build fedora -v
     ==> Build Order:
         fedora@38-aa51aa7
 
@@ -245,7 +259,7 @@ so that we have more options for building later. Edit the fedora ``specs.yaml`` 
 
 .. code-block:: bash
 
-    user@hostname:~$ velocity avail
+    $ velocity avail
     ==> fedora
         38
         39
@@ -260,7 +274,7 @@ than, and in-between via ``<image>@<version>:``, ``<image>@:<version>`` and ``<i
 
 Hello World!
 ############
-Now let's get a little more complicated. Let's create an image that runs a python script which prints hello world. You
+Now let's get a little more complicated. Let's create an image that runs a python script which prints ``Hello, World!``. You
 can give it whatever version you want:
 
 .. code-block:: bash
@@ -279,7 +293,7 @@ can give it whatever version you want:
 
 Notice that now there is a new folder called ``files`` with a python script in it.
 
-.. code-block:: bash
+.. code-block:: python
     :caption: hello_world.py
 
     #!/usr/bin/env python3
@@ -317,7 +331,7 @@ Notice that now there is a new folder called ``files`` with a python script in i
 
 .. code-block:: bash
 
-    user@hostname:~$ velocity avail
+    $ velocity avail
     ==> fedora
         38
         39
@@ -328,7 +342,7 @@ Notice that now there is a new folder called ``files`` with a python script in i
 
 .. code-block:: bash
 
-    user@hostname:~$ velocity build hello-world -v
+    $ velocity build hello-world -v
     ==> Build Order:
         fedora@41-8a9a360
         hello-world@1.0-de9c02b
@@ -501,19 +515,450 @@ Our hello-world image has been built!
 .. code-block:: bash
     :emphasize-lines: 7
 
-    user@hostname:~$ ls
+    $ ls
     total 190972
-    drwxr-xr-x  4 xjv  users      4096 Sep 18 10:01 .
+    drwxr-xr-x  4 xxx  users      4096 Sep 18 10:01 .
     drwxrwxrwt 31 root root     131072 Sep 18 10:01 ..
-    drwxr-xr-x  4 xjv  users      4096 Sep 18 10:01 build
-    -rwxr-xr-x  1 xjv  users  66007040 Sep 18 09:42 fedora-38__x86_64-fedora.sif
-    -rwxr-xr-x  1 xjv  users 129392640 Sep 18 10:01 hello-world-1.0_fedora-41__x86_64-fedora.sif
-    drwxr-xr-x  4 xjv  users      4096 Sep 18 09:44 images
+    drwxr-xr-x  4 xxx  users      4096 Sep 18 10:01 build
+    -rwxr-xr-x  1 xxx  users  66007040 Sep 18 09:42 fedora-38__x86_64-fedora.sif
+    -rwxr-xr-x  1 xxx  users 129392640 Sep 18 10:01 hello-world-1.0_fedora-41__x86_64-fedora.sif
+    drwxr-xr-x  4 xxx  users      4096 Sep 18 09:44 images
 
 
 Now you can run the image!
 
 .. code-block:: bash
 
-    user@hostname:~$ apptainer run hello-world-1.0_fedora-41__x86_64-fedora.sif
+    $ apptainer run hello-world-1.0_fedora-41__x86_64-fedora.sif
     Hello, World!
+
+OLCF Images
+###########
+
+Let's extend what we have done so far and explore some more features of Velocity using a base set of image definitions
+provided at https://github.com/olcf/velocity-images. Clone the repository and run:
+
+.. code-block:: bash
+
+    export VELOCITY_IMAGE_PATH=<path to the cloned repo>:$VELOCITY_IMAGE_PATH
+
+Let's check what images are available now.
+
+.. note::
+
+    Due to updates to https://github.com/olcf/velocity-images the output shown below may be different for you.
+
+.. code-block:: bash
+
+    $ velocity avail
+    ==> fedora
+        38
+        39
+        40
+        41
+    ==> gcc
+        12.3.0
+        13.2.0
+        14.1.0
+    ==> hello-world
+        1.0
+    ==> llvm
+        17.0.0
+        17.0.6
+    ==> mpich
+        3.4.3
+    ==> rocm
+        5.7.1
+        6.0.1
+        6.1.3
+
+If you were to look at the contents of https://github.com/olcf/velocity-images you would notice that there is a
+folder in it defining an ``ubuntu`` image. Why does that image not show up? At the beginning of this tutorial
+we set ``export VELOCITY_DISTRO=fedora``. In the ``ubuntu`` ``specs.yaml`` file you would see:
+
+.. code-block:: yaml
+
+    versions:
+      - spec:
+          - 20.04
+          - 22.04
+          - 24.04
+        when: distro=ubuntu
+
+The ``when: distro=ubuntu`` means that the defined versions will not show up unless the distro is set to ``ubuntu``.
+Run the following command and compare the difference.
+
+.. code-block:: bash
+
+    $ velocity -d ubuntu avail
+    ==> gcc
+        12.3.0
+        13.2.0
+        14.1.0
+    ==> hello-world
+        1.0
+    ==> llvm
+        17.0.0
+        17.0.6
+    ==> mpich
+        3.4.3
+    ==> rocm
+        5.7.1
+        6.0.1
+        6.1.3
+    ==> ubuntu
+        20.04
+        22.04
+        24.04
+
+.. important::
+
+    This is important because it keeps us from trying to build a container with two distros, but it may catch you off gaurd
+    by hiding images you thought you had defined.
+
+Now let try building our ``hello-world`` image on an ``ubuntu`` base. In the current state the build will fail but let's
+run it anyway and trouble shoot it.
+
+.. code-block:: bash
+
+    $ velocity -d ubuntu build hello-world
+    ==> Build Order:
+        hello-world@1.0-8fe7227
+
+    ==> 8fe7227: BUILD hello-world@1.0 ...
+    ==> 8fe7227: COPYING FILES ...
+    ==> 8fe7227: GENERATING SCRIPT ...
+    Traceback (most recent call last):
+      File "/tmp/velocity_env/lib/python3.10/site-packages/velocity/_backends.py", line 131, in generate_script
+        if len(sections["@from"]) != 1:
+    KeyError: '@from'
+
+    During handling of the above exception, another exception occurred:
+
+    Traceback (most recent call last):
+      File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+        return _run_code(code, main_globals, None,
+      File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+        exec(code, run_globals)
+      File "/tmp/velocity_env/lib/python3.10/site-packages/velocity/__main__.py", line 111, in <module>
+        builder.build()
+      File "/tmp/velocity_env/lib/python3.10/site-packages/velocity/_build.py", line 128, in build
+        self._build_image(u, last, name)
+      File "/tmp/velocity_env/lib/python3.10/site-packages/velocity/_build.py", line 223, in _build_image
+        script = self.backend_engine.generate_script(unit, script_variables)
+      File "/tmp/velocity_env/lib/python3.10/site-packages/velocity/_backends.py", line 140, in generate_script
+        raise TemplateSyntaxError("You must have an @from section in your template!")
+    velocity._exceptions.TemplateSyntaxError: You must have an @from section in your template!
+
+We see that an error occurred in the ``GENERATING SCRIPT`` section. But if we look under ``==> Build Order`` at the top
+we will notice the real cause. The ``ubuntu`` image is not being built. This causes the error in script generation
+because in our ``default.vtmp`` for ``hello-world`` we have ``{{ __base__ }}`` defined in our ``@from`` section which
+looks for a previously built image to build on. Let's edit our ``hello-world`` ``specs.yaml``. It should look like this.
+
+.. code-block:: yaml
+    :caption: specs.yaml
+    :emphasize-lines: 6-7
+
+    versions:
+      - spec: 1.0
+    dependencies:
+      - spec: fedora
+        when: distro=fedora
+      - spec: ubuntu
+        when: distro=ubuntu
+    files:
+      - name: hello_world.py
+
+Under the ``dependencies`` section we added the ``ubuntu`` image, but we specified it should only be a dependency when
+our distro is set to ubuntu. You can test that Velocity is now adding ``ubuntu`` as a dependency by running:
+
+.. code-block:: bash
+
+    $ velocity -d ubuntu spec hello-world
+      > hello-world@1.0-f6bfef8
+         ^ubuntu@24.04-ce71495
+
+Now we can try to build again, but it will fail with a new error.
+
+.. code-block:: bash
+
+    $ velocity -d ubuntu build hello-world
+    ==> Build Order:
+        ubuntu@24.04-ce71495
+        hello-world@1.0-f6bfef8
+
+    ==> ce71495: BUILD ubuntu@24.04 ...
+    ==> ce71495: GENERATING SCRIPT ...
+    ==> ce71495: BUILDING ...
+    ==> ce71495: IMAGE /tmp/velocity/build/ubuntu-24.04-ce71495/ce71495.sif (ubuntu@24.04) BUILT [0:00:00]
+
+    ==> f6bfef8: BUILD hello-world@1.0 ...
+    ==> f6bfef8: COPYING FILES ...
+    ==> f6bfef8: GENERATING SCRIPT ...
+    ==> f6bfef8: BUILDING ...
+        INFO:    Starting build...
+        INFO:    Verifying bootstrap image /tmp/velocity/build/ubuntu-24.04-ce71495/ce71495.sif
+        INFO:    Copying hello_world.py to /hello_world
+        INFO:    Running post scriptlet
+        + dnf -y install python3
+        /.post.script: 1: dnf: not found
+        FATAL:   While performing build: while running engine: exit status 127
+
+Velocity prints out the error from the build ``dnf: not found``. Lets look back at the :doc:`vtmp </reference/vtmp>`
+script we wrote for ``hello-world``. Under the ``@run`` section we had:
+
+.. code-block:: text
+
+    @run
+        dnf -y install python3
+        chmod +x /hello_world
+
+We used dnf to install python because it is not installed in the fedora docker image by default. We need to edit this
+script to support ``ubuntu``. Change the ``@run`` section to:
+
+.. code-block:: text
+
+    @run
+        ?? distro=fedora |> dnf -y install python3 ??
+        ?? distro=ubuntu |> apt -y install python3 ??
+        chmod +x /hello_world
+
+Now we can test by doing a verbose dry-run for ``fedora`` and ``ubuntu``.
+
+.. code-block:: bash
+    :emphasize-lines: 32
+    :caption: fedora
+
+    $ velocity build hello-world -dv
+    ==> Build Order:
+        fedora@41-8a9a360
+        hello-world@1.0-3de9f9b
+
+    ==> 8a9a360: BUILD fedora@41 --DRY-RUN ...
+    ==> 8a9a360: GENERATING SCRIPT ...
+        SCRIPT: /tmp/velocity/build/fedora-41-8a9a360/script
+        Bootstrap: docker
+        From: docker.io/fedora:41
+
+        %post
+        dnf -y upgrade
+        dnf clean all
+    ==> 8a9a360: BUILDING ...
+        #!/usr/bin/env bash
+        apptainer build --disable-cache /tmp/velocity/build/fedora-41-8a9a360/8a9a360.sif /tmp/velocity/build/fedora-41-8a9a360/script;
+    ==> 8a9a360: IMAGE /tmp/velocity/build/fedora-41-8a9a360/8a9a360.sif (fedora@41) BUILT [0:00:00]
+
+    ==> 3de9f9b: BUILD hello-world@1.0 --DRY-RUN ...
+    ==> 3de9f9b: COPYING FILES ...
+        FILE: /tmp/velocity/images/hello-world/files/hello_world.py -> /tmp/velocity/build/hello-world-1.0-3de9f9b/hello_world.py
+    ==> 3de9f9b: GENERATING SCRIPT ...
+        SCRIPT: /tmp/velocity/build/hello-world-1.0-3de9f9b/script
+        Bootstrap: localimage
+        From: /tmp/velocity/build/fedora-41-8a9a360/8a9a360.sif
+
+        %files
+        hello_world.py /hello_world
+
+        %post
+        dnf -y install python3
+        chmod +x /hello_world
+
+        %runscript
+        /hello_world
+    ==> 3de9f9b: BUILDING ...
+        #!/usr/bin/env bash
+        apptainer build --disable-cache /tmp/velocity/build/hello-world-1.0-3de9f9b/3de9f9b.sif /tmp/velocity/build/hello-world-1.0-3de9f9b/script;
+    ==> 3de9f9b: IMAGE /tmp/velocity/build/hello-world-1.0-3de9f9b/3de9f9b.sif (hello-world@1.0) BUILT [0:00:00]
+
+    ==> BUILT: /tmp/velocity/hello-world-1.0_fedora-41__x86_64-fedora.sif
+
+.. code-block:: bash
+    :emphasize-lines: 37
+    :caption: ubuntu
+
+    $ velocity -d ubuntu build hello-world -dv
+    ==> Build Order:
+        ubuntu@24.04-ce71495
+        hello-world@1.0-b03891d
+
+    ==> ce71495: BUILD ubuntu@24.04 --DRY-RUN ...
+    ==> ce71495: GENERATING SCRIPT ...
+        SCRIPT: /tmp/velocity/build/ubuntu-24.04-ce71495/script
+        Bootstrap: docker
+        From: docker.io/ubuntu:24.04
+
+        %post
+        export DEBIAN_FRONTEND="noninteractive"
+        apt -y update
+        apt -y upgrade
+        apt clean
+
+        %environment
+        export DEBIAN_FRONTEND="noninteractive"
+    ==> ce71495: BUILDING ...
+        #!/usr/bin/env bash
+        apptainer build --disable-cache /tmp/velocity/build/ubuntu-24.04-ce71495/ce71495.sif /tmp/velocity/build/ubuntu-24.04-ce71495/script;
+    ==> ce71495: IMAGE /tmp/velocity/build/ubuntu-24.04-ce71495/ce71495.sif (ubuntu@24.04) BUILT [0:00:00]
+
+    ==> b03891d: BUILD hello-world@1.0 --DRY-RUN ...
+    ==> b03891d: COPYING FILES ...
+        FILE: /tmp/velocity/images/hello-world/files/hello_world.py -> /tmp/velocity/build/hello-world-1.0-b03891d/hello_world.py
+    ==> b03891d: GENERATING SCRIPT ...
+        SCRIPT: /tmp/velocity/build/hello-world-1.0-b03891d/script
+        Bootstrap: localimage
+        From: /tmp/velocity/build/ubuntu-24.04-ce71495/ce71495.sif
+
+        %files
+        hello_world.py /hello_world
+
+        %post
+        apt -y install python3
+        chmod +x /hello_world
+
+        %runscript
+        /hello_world
+    ==> b03891d: BUILDING ...
+        #!/usr/bin/env bash
+        apptainer build --disable-cache /tmp/velocity/build/hello-world-1.0-b03891d/b03891d.sif /tmp/velocity/build/hello-world-1.0-b03891d/script;
+    ==> b03891d: IMAGE /tmp/velocity/build/hello-world-1.0-b03891d/b03891d.sif (hello-world@1.0) BUILT [0:00:00]
+
+    ==> BUILT: /tmp/velocity/hello-world-1.0_ubuntu-24.04__x86_64-ubuntu.sif
+
+We can see that each build uses the correct command to install python. Now we can actually build the image.
+
+.. code-block:: bash
+
+    $ velocity -d ubuntu build hello-world
+    ==> Build Order:
+        ubuntu@24.04-ce71495
+        hello-world@1.0-b03891d
+
+    ==> ce71495: BUILD ubuntu@24.04 ...
+    ==> ce71495: GENERATING SCRIPT ...
+    ==> ce71495: BUILDING ...
+    ==> ce71495: IMAGE /tmp/velocity/build/ubuntu-24.04-ce71495/ce71495.sif (ubuntu@24.04) BUILT [0:00:00]
+
+    ==> b03891d: BUILD hello-world@1.0 ...
+    ==> b03891d: COPYING FILES ...
+    ==> b03891d: GENERATING SCRIPT ...
+    ==> b03891d: BUILDING ...
+    ==> b03891d: IMAGE /tmp/velocity/build/hello-world-1.0-b03891d/b03891d.sif (hello-world@1.0) BUILT [0:00:09]
+
+    ==> BUILT: /tmp/velocity/hello-world-1.0_ubuntu-24.04__x86_64-ubuntu.sif
+
+This example is a demonstration of one of the major strengths of Velocity. The ``hello-world`` image can now be built
+on any version of ``fedora`` or ``ubuntu``, but instead of having a separate script for each version and distro we have
+just three. One for ``fedora``, one for ``ubuntu`` and one for ``hello-world``. This may not seem like a big win for an
+example like ``hello-world``; however, this becomes a big win for images like the ``gcc`` image in
+https://github.com/olcf/velocity-images. If you look at the ``gcc`` image ``default.vtmp`` script you will see that it can
+build practically any version of gcc on ``ubuntu``, ``opensuse`` and ``rockylinux``. And all of that with only 24 lines
+of code (in the gcc script).
+
+The last thing we need to look at for this tutorial is Velocity's support for multiple container backends. Let's look at
+a dry-run example of the ``fedora`` image that we have been building with ``apptainer``.
+
+.. code-block::
+    :emphasize-lines: 8-13,16,19
+
+    $ velocity build fedora -vd
+    ==> Build Order:
+        fedora@41-8a9a360
+
+    ==> 8a9a360: BUILD fedora@41 --DRY-RUN ...
+    ==> 8a9a360: GENERATING SCRIPT ...
+        SCRIPT: /tmp/velocity/build/fedora-41-8a9a360/script
+        Bootstrap: docker
+        From: docker.io/fedora:41
+
+        %post
+        dnf -y upgrade
+        dnf clean all
+    ==> 8a9a360: BUILDING ...
+        #!/usr/bin/env bash
+        apptainer build --disable-cache /tmp/velocity/build/fedora-41-8a9a360/8a9a360.sif /tmp/velocity/build/fedora-41-8a9a360/script;
+    ==> 8a9a360: IMAGE /tmp/velocity/build/fedora-41-8a9a360/8a9a360.sif (fedora@41) BUILT [0:00:00]
+
+    ==> BUILT: /tmp/velocity/fedora-41__x86_64-fedora.sif
+
+Next let's look at the same thing but with the backend set to ``podman``.
+
+.. warning::
+
+    If Podman is not installed this will fail. Conversely, if you are on a system that does not have Apptainer
+    installed, ``build`` commands using it will fail.
+
+.. code-block::
+    :emphasize-lines: 8-11,14,17
+
+    $ velocity -b podman build fedora -vd
+    ==> Build Order:
+        fedora@41-bd4bd64
+
+    ==> bd4bd64: BUILD fedora@41 --DRY-RUN ...
+    ==> bd4bd64: GENERATING SCRIPT ...
+        SCRIPT: /tmp/velocity/build/fedora-41-bd4bd64/script
+        FROM docker.io/fedora:41
+
+        RUN dnf -y upgrade && \
+            dnf clean all
+    ==> bd4bd64: BUILDING ...
+        #!/usr/bin/env bash
+        podman build -f /tmp/velocity/build/fedora-41-bd4bd64/script -t localhost/bd4bd64:latest .;
+    ==> bd4bd64: IMAGE localhost/bd4bd64:latest (fedora@41) BUILT [0:00:00]
+
+    ==> BUILT: localhost/fedora-41__x86_64-fedora:latest
+
+As you can see Velocity automatically renders the scripts to the correct format and changes the build commands
+to use Podman. Amazing!!!
+
+One last note about debugging builds with Velocity. We set ``VELOCITY_BUILD_DIR`` at the beginning of this tutorial.
+If you look in the directory that it points to you will find a folder for each image that was built. Each folder
+contains the rendered script, build log, files generated by the build (e.g SIF files), build commands, and any files
+that were needed for the build (e.g. ``hello_world.py``). All of these can be very useful for debugging a build.
+One very helpful feature is that the build of an image can be run manually by running the ``build`` script in a folder.
+
+.. code-block:: bash
+    :caption: Build Directory Contents
+
+    .
+    ├── fedora-38-aa51aa7
+    │ ├── aa51aa7.sif
+    │ ├── build
+    │ ├── log
+    │ └── script
+    ├── fedora-41-8a9a360
+    │ ├── 8a9a360.sif
+    │ ├── build
+    │ ├── log
+    │ └── script
+    ├── fedora-41-bd4bd64
+    │ ├── build
+    │ └── script
+    ├── hello-world-1.0-12e1055
+    │ ├── 12e1055.sif
+    │ ├── build
+    │ ├── hello_world.py
+    │ ├── log
+    │ └── script
+    ├── hello-world-1.0-3de9f9b
+    │ ├── build
+    │ ├── hello_world.py
+    │ └── script
+    ├── hello-world-1.0-8fe7227 # here is one of the failed builds
+    │ └── hello_world.py
+    ├── hello-world-1.0-b03891d
+    │ ├── b03891d.sif
+    │ ├── build
+    │ ├── hello_world.py
+    │ ├── log
+    │ └── script
+    ├── hello-world-1.0-f6bfef8
+    │ ├── build
+    │ ├── hello_world.py
+    │ ├── log
+    │ └── script
+    └── ubuntu-24.04-ce71495
+        ├── build
+        ├── ce71495.sif
+        ├── log
+        └── script

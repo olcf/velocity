@@ -9,6 +9,10 @@ Velocity Container Build Management
 Velocity is a tool to help with the maintenance of container build scripts on multiple systems, backends
 (e.g podman or apptainer) and distros.
 
+.. important::
+
+   Documentation hosted at `olcf.github.io/velocity <https://olcf.github.io/velocity>`_ follows the ``develop`` branch.
+
 .. toctree::
    :maxdepth: 2
 
