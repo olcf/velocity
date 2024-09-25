@@ -522,7 +522,7 @@ class ImageRepo:
         self.images: set[Image] = set()
         # constraint(image, condition, type, spec, scope)
         self.constraints: list[tuple[str, str, str, str, str]] = list()
-        if config.get("constraints") is not None:
+        if config.get("constraints", warn_on_miss=False) is not None:
             # arguments
             if "arguments" in config.get("constraints"):
                 for argument in config.get("constraints")["arguments"]:
