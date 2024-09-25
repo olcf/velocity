@@ -43,9 +43,11 @@ You can also clone the velocity repository and build/install velocity from sourc
 
     git clone https://github.com/olcf/velocity.git
     cd velocity
+    pip install build
     python3 -m build
-    # install the built python wheel package
-    pip install dist/olcf-velocity-<version>*.whl
+    # install the built python wheel package the version will depend on what version of velocity you have checked out
+    # check the dist directory for the exact version
+    pip install dist/olcf_velocity-<version>-py3-none-any.whl
 
 Now you can use Velocity as a python module! We recommend setting a bash alias for convenience.
 
