@@ -37,7 +37,7 @@ class Config:
         except (AttributeError, InvalidConfigIdentifier) as e:
             logger.exception(e)
 
-    def get(self, item: str) -> int | bool | str | list | dict | None:
+    def get(self, item: str, warn_on_miss=True) -> int | bool | str | list | dict | None:
         """Get configuration property. Return None if not found"""
         try:
             if item != "":
@@ -52,7 +52,10 @@ class Config:
             else:
                 return self._config
         except (KeyError, TypeError):
-            logger.warning("Could not find '{}' in config.", format(item))
+            if warn_on_miss:
+                logger.warning("Could not find '{}' in config.", format(item))
+            else:
+                logger.info("Could not find '{}' in config.", format(item))
         except InvalidConfigIdentifier as e:
             logger.exception(e)
         return None
@@ -76,6 +79,8 @@ class Config:
 
 # default configuration & singleton
 _config = Config()
+if getenv("VELOCITY_CONFIG_DIR") is not None:
+    _config.set("velocity:config_dir", getenv("VELOCITY_CONFIG_DIR"))
 _config.load()
 
 # get config from environment variables
@@ -88,9 +93,6 @@ if getenv("VELOCITY_BACKEND") is not None:
 if getenv("VELOCITY_DISTRO") is not None:
     _config.set("velocity:distro", getenv("VELOCITY_DISTRO"))
 
-if getenv("VELOCITY_CONFIG_DIR") is not None:
-    _config.set("velocity:config_dir", getenv("VELOCITY_CONFIG_DIR"))
-
 if getenv("VELOCITY_IMAGE_PATH") is not None:
     _config.set("velocity:image_path", getenv("VELOCITY_IMAGE_PATH"))
 
@@ -98,24 +100,24 @@ if getenv("VELOCITY_BUILD_DIR") is not None:
     _config.set("velocity:build_dir", getenv("VELOCITY_BUILD_DIR"))
 
 # set defaults for un-configured items
-if _config.get("velocity:system") is None:
+if _config.get("velocity:system", warn_on_miss=False) is None:
     _config.set("velocity:system", arch())
 
-if _config.get("velocity:backend") is None:
+if _config.get("velocity:backend", warn_on_miss=False) is None:
     _config.set("velocity:backend", "apptainer")
 
-if _config.get("velocity:distro") is None:
+if _config.get("velocity:distro", warn_on_miss=False) is None:
     _config.set("velocity:distro", "ubuntu")
 
-if _config.get("velocity:debug") is None:
+if _config.get("velocity:debug", warn_on_miss=False) is None:
     _config.set("velocity:debug", "WARNING")
 
-if _config.get("velocity:image_path") is None:
+if _config.get("velocity:image_path", warn_on_miss=False) is None:
     image_dir = Path.home().joinpath(".velocity", "images")
     image_dir.mkdir(parents=True, exist_ok=True)
     _config.set("velocity:image_path", image_dir.__str__())
 
-if _config.get("velocity:build_dir") is None:
+if _config.get("velocity:build_dir", warn_on_miss=False) is None:
     _config.set("velocity:build_dir", Path("/tmp").joinpath(get_username(), "velocity").__str__())
 
 # export
