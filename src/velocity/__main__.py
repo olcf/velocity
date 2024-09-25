@@ -81,7 +81,7 @@ logger.trace(config.get(""))
 # Load images
 ############################################################
 imageRepo = ImageRepo()
-for p in config.get("velocity:image_path").split(":"):
+for p in config.get("velocity:image_path").strip(":").split(":"):
     imageRepo.import_from_dir(p)
 
 ############################################################
