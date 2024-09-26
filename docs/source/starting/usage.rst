@@ -24,15 +24,14 @@ The `avail` command prints the defined images that can be built.
         17.0.6
     ==> mpich
         3.4.3
+    ==> opensuse
+        15.4
+        15.5
+        15.6
     ==> rocm
         5.7.1
         6.0.1
         6.1.3
-    ==> ubuntu
-        20.04
-        22.04
-        24.04
-
 
 Each image is listed and then indented underneath is a list of the available versions.
 
@@ -44,8 +43,8 @@ The `spec` command shows the dependencies for a given image (or list of images) 
 .. code-block:: bash
 
     $ velocity spec rocm
-      > rocm@6.1.3-fd4d363
-         ^ubuntu@22.04-f385880
+      > rocm@6.1.3-2a35af4
+         ^opensuse@15.5-b386640
 
 `build`
 -------
@@ -54,35 +53,34 @@ The `build` command can be used to build an container image from one or more ima
 
 .. code-block:: bash
 
-    $ velocity build ubuntu
+    $ velocity build opensuse
     ==> Build Order:
-        ubuntu@24.04-ce71495
+        opensuse@15.6-01205e8
 
-    ==> ce71495: BUILD ubuntu@24.04 ...
-    ==> ce71495: GENERATING SCRIPT ...
-    ==> ce71495: BUILDING ...
-    ==> ce71495: IMAGE /tmp/velocity/scratch/ubuntu-24.04-ce71495/ce71495.sif (ubuntu@24.04) BUILT [0:00:25]
+    ==> 01205e8: BUILD opensuse@15.6 ...
+    ==> 01205e8: GENERATING SCRIPT ...
+    ==> 01205e8: BUILDING ...
+    ==> 01205e8: IMAGE /tmp/xjv/velocity/opensuse-15.6-01205e8/01205e8.sif (opensuse@15.6) BUILT [0:02:12]
 
-    ==> BUILT: /tmp/velocity/images/ubuntu-24.04__x86_64-ubuntu.sif
-
+    ==> BUILT: /tmp/opensuse-15.6__x86_64-opensuse.sif
 
 Both the spec and the build command can also take a list of images.
 
 .. code-block:: bash
 
-    $ velocity build ubuntu mpich
+    $ velocity build opensuse mpich
     ==> Build Order:
-        ubuntu@24.04-ce71495
-        mpich@3.4.3-f5a1d3b
+        opensuse@15.6-01205e8
+        mpich@3.4.3-5a22b26
 
-    ==> ce71495: BUILD ubuntu@24.04 ...
-    ==> ce71495: GENERATING SCRIPT ...
-    ==> ce71495: BUILDING ...
-    ==> ce71495: IMAGE /tmp/velocity/scratch/ubuntu-24.04-ce71495/ce71495.sif (ubuntu@24.04) BUILT [0:00:00]
+    ==> 01205e8: BUILD opensuse@15.6 ...
+    ==> 01205e8: GENERATING SCRIPT ...
+    ==> 01205e8: BUILDING ...
+    ==> 01205e8: IMAGE /tmp/xjv/velocity/opensuse-15.6-01205e8/01205e8.sif (opensuse@15.6) BUILT [0:00:00]
 
-    ==> f5a1d3b: BUILD mpich@3.4.3 ...
-    ==> f5a1d3b: GENERATING SCRIPT ...
-    ==> f5a1d3b: BUILDING ...
-    ==> f5a1d3b: IMAGE /tmp/xjv/velocity/mpich-3.4.3-f5a1d3b/f5a1d3b.sif (mpich@3.4.3) BUILT [0:00:00]
+    ==> 5a22b26: BUILD mpich@3.4.3 ...
+    ==> 5a22b26: GENERATING SCRIPT ...
+    ==> 5a22b26: BUILDING ...
+    ==> 5a22b26: IMAGE /tmp/xjv/velocity/mpich-3.4.3-5a22b26/5a22b26.sif (mpich@3.4.3) BUILT [0:09:32]
 
-    ==> BUILT: /tmp/velocity/images/mpich-3.4.3_ubuntu-24.04__x86_64-ubuntu.sif
+    ==> BUILT: /tmp/mpich-3.4.3_opensuse-15.6__x86_64-opensuse.sif

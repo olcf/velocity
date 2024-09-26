@@ -214,7 +214,7 @@ Now you can run the image!
 
 .. code-block:: bash
 
-    $ apptainer run hello-world-1.0_opensuse-15.6__frontier-opensuse.sif
+    $ apptainer run hello-world-*-opensuse.sif  # replace * with the specifics of your build
     Hello, World!
 
 OLCF Images
@@ -618,38 +618,4 @@ One very helpful feature is that the build of an image can be run manually by ru
     │ ├── hello_world.py
     │ ├── log
     │ └── script
-    ├── hello-world-1.0-5fa2515
-    │ ├── build
-    │ ├── hello_world.py
-    │ └── script
-    ├── hello-world-1.0-7562a9e     # one of the failed build
-    │ └── hello_world.py
-    ├── hello-world-1.0-9dcbb36
-    │ ├── build
-    │ ├── hello_world.py
-    │ ├── log
-    │ └── script
-    ├── hello-world-1.0-a167014
-    │ ├── a167014.sif
-    │ ├── build
-    │ ├── hello_world.py
-    │ ├── log
-    │ └── script
-    ├── opensuse-15.4-a1913cd
-    │ ├── a1913cd.sif
-    │ ├── build
-    │ ├── log
-    │ └── script
-    ├── opensuse-15.6-59edd44
-    │ ├── 59edd44.sif
-    │ ├── build
-    │ ├── log
-    │ └── script
-    ├── opensuse-15.6-90ac66d
-    │ ├── build
-    │ └── script
-    └── ubuntu-24.04-043b176
-        ├── 043b176.sif
-        ├── build
-        ├── log
-        └── script
+    ...
