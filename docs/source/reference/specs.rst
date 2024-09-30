@@ -73,6 +73,8 @@ Use the `variables` section to set template variables.
       - name: test_var
         value: "Test value."
 
+.. _specs_files:
+
 files
 -----
 Use the `files` section to specify files or directories in the `files` folder that you want copied to the build directory.
@@ -84,7 +86,7 @@ Use the `files` section to specify files or directories in the `files` folder th
 
 prologs
 -------
-Use the `prologs` section to bash commands that you want to run before the build.
+Use the `prologs` section to add bash commands that you want to run before the build.
 
 .. code-block:: yaml
 
@@ -99,9 +101,9 @@ A few notes about using ``when`` to filter config options. The ``when`` option c
 above by system, backend, distro and dependencies. The only exception to this is the `versions` section which cannot
 be filtered by dependencies. List each item that you want to filter by separated by a space e.g. ``gcc@12.3 system=frontier``.
 Additionally you can specify the scope of a ``when`` by specifying the ``scope``. The default scope is ``image`` which means
-that the when statement is evaluated on the current image. So say you want to apply a config in the gcc `specs.yaml` file
-to every gcc version greater than 10.3.0, you would use ``when: ^ubuntu:``. Alternatively you can set the scope to ``build``
-when you want the when statement evaluated on the current build.
+that the when statement is evaluated on the current image. So if you want to apply a config in the gcc `specs.yaml` file
+to every gcc version greater than 10.3.0, you would use ``when: gcc@10.3.0: ^ubuntu``. Alternatively you can set the scope to ``build``
+when you want the ``when`` statement evaluated on all the images in the current build.
 
 .. code-block:: yaml
 

@@ -7,13 +7,13 @@ This page describes the steps that velocity goes through when building an image.
 Setup
 #####
 After selecting images to build and ordering them Velocity will also create a directory BSD (Build Sub Dir)
-named ``<name>-<version>-<hash>`` in build directory.
+named ``<name>-<version>-<hash>`` in the :ref:`build directory <build_dir>`.
 
 .. _files:
 
 Files
 #####
-Next Velocity will copy any files that you specified.
+Next Velocity will copy any :ref:`specs_files` that you specified.
 
 Parse Template
 ##############

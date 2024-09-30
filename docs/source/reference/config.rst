@@ -30,6 +30,8 @@ This variable specifies the container backend that should be used (e.g podman).
 This variable specifies the distro of the container images that will be built. This name is flexable and completely
 up to the user. It is used purely for organizational purposes.
 
+.. _build_dir:
+
 `VELOCITY_BUILD_DIR`
 --------------------
 This variable specifies a scratch space for Velocity to preform builds in.
