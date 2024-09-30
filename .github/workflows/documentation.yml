@@ -1,12 +1,10 @@
-# Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+# Deploy Velocity documentation
+name: Deploy documentation to Pages
 
 on:
-  # Runs on pushes targeting the default branch
+  # trigger on push to develop also allow manual runs
   push:
     branches: ["develop"]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -22,7 +20,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
   deploy:
     environment:
       name: github-pages
@@ -32,7 +29,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: "release/0.1"
+          ref: "develop"
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Set up Python
@@ -46,10 +43,9 @@ jobs:
       - name: Build Docs
         run: |
           cd docs && make html
-      - name: Upload artifact
+      - name: Upload documentation HTML files
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
           path: './docs/build/html'
       - name: Deploy to GitHub Pages
         id: deployment
