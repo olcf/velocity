@@ -36,7 +36,7 @@ a file named ``default.vtmp``. Your image directory and files should now look li
 
 
 .. code-block:: yaml
-    :caption: specs.yaml
+    :caption: opensuse/specs.yaml
 
     versions:
       - spec: 15.4
@@ -45,7 +45,7 @@ a file named ``default.vtmp``. Your image directory and files should now look li
 
 
 .. code-block:: text
-    :caption: default.vtmp
+    :caption: opensuse/templates/default.vtmp
 
     @from
         docker.io/opensuse/leap:{{ __version__ }}
@@ -106,7 +106,7 @@ so that we have more options for building later. Edit the opensuse ``specs.yaml`
 Specifying Version
 ##################
 When building an image Velocity will default to the latest image. To specify a version use ``<image>@<version>`` e.g.
-``opensuse@15.5``. Versions take the form ``<major>.<minor>.<patch>-<suffix>``. You can also specify greater than, less
+``opensuse@15.6``. Versions take the form ``<major>.<minor>.<patch>-<suffix>``. You can also specify greater than, less
 than, and in-between via ``<image>@<version>:``, ``<image>@:<version>`` and ``<image>@<version>:<version>`` respectively.
 
 Hello World!
@@ -131,14 +131,14 @@ can give it whatever version you want:
 Notice that now there is a new folder called ``files`` with a python script in it.
 
 .. code-block:: python
-    :caption: hello_world.py
+    :caption: hello-world/files/hello_world.py
 
     #!/usr/bin/env python3
 
     print("Hello, World!")
 
 .. code-block:: yaml
-    :caption: specs.yaml
+    :caption: hello-world/specs.yaml
 
     versions:
       - spec: 1.0
@@ -150,7 +150,7 @@ Notice that now there is a new folder called ``files`` with a python script in i
 
 
 .. code-block:: text
-    :caption: default.vtmp
+    :caption: hello-world/templates/default.vtmp
 
     @from
         {{ __base__ }}
@@ -343,7 +343,7 @@ because in our ``default.vtmp`` for ``hello-world`` we have ``{{ __base__ }}`` d
 looks for a previous image to build on. Let's edit our ``hello-world`` ``specs.yaml``. It should look like this.
 
 .. code-block:: yaml
-    :caption: specs.yaml
+    :caption: hello-world/specs.yaml
     :emphasize-lines: 6-7
 
     versions:

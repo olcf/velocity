@@ -37,7 +37,7 @@ The easiest way to install velocity is to install prebuilt python packages using
 
     pip install olcf-velocity
 
-You can also clone the velocity repository and build/install velocity from source.
+Alternatively, you can clone the velocity repository and build/install velocity from source.
 
 .. code-block:: bash
 
