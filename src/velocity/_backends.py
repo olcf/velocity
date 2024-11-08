@@ -235,6 +235,229 @@ class Backend(ABC):
         """Generate command to move the last image in the build to its final destination."""
 
 
+class Apptainer(Backend):
+    """Apptainer backend."""
+
+    def __init__(self):
+        super().__init__(name="apptainer", executable="apptainer")
+
+    def _from(self, contents: list[str]) -> list[str]:
+        ret: list[str] = list()
+        if re_match(r"^.*\.sif$", contents[0]):
+            ret.append("Bootstrap: localimage")
+        elif re_match(r"^.*/.*:.*$", contents[0]):
+            ret.append("Bootstrap: docker")
+        else:
+            raise TemplateSyntaxError("Unknown source format in @from!", contents[0])
+        ret.append("From: {}".format(contents[0]))
+        return ret
+
+    def _arguments(self, all_contents: dict[str, list[str]]) -> list[str]:
+        for si in all_contents.keys():
+            for li in range(len(all_contents[si])):
+                res = re_match(r".*(@@\s*(\S+)\s*@@).*", all_contents[si][li])
+                if res is not None:
+                    if len(res.group(2).split()) != 1:
+                        raise TemplateSyntaxError("Arguments cannot have spaces in their names!")
+                    else:
+                        all_contents[si][li] = _substitute(
+                            all_contents[si][li],
+                            {res.group(2): f"{{{{ {res.group(2)} }}}}"},
+                            r"@@\s*(\S+)\s*@@",
+                        )
+        return list()
+
+    def _copy(self, contents: list[str]) -> list[str]:
+        ret: list[str] = ["", "%files"]
+        for ln in contents:
+            if len(ln.split()) != 2:
+                raise TemplateSyntaxError("Your '@copy' can only have one source and destination!", ln)
+            ret.append("{}".format(ln))
+        return ret
+
+    def _run(self, contents: list[str], label_contents: list[str]) -> list[str]:
+        ret: list[str] = ["", "%post"]
+        for cmd in contents:
+            # handel !envar directives
+            if re_match(r"^!envar\s+.*", cmd):
+                res = re_match(r"^!envar\s+(?P<name>\S+)\s+(?P<value>.*)$", cmd)
+                cmd = 'export {name}="{value}"'.format(**res.groupdict())
+                label_contents.append("{name} {value}".format(**res.groupdict()))
+            ret.append("{}".format(cmd))
+        return ret
+
+    def _env(self, contents: list[str]) -> list[str]:
+        ret: list[str] = ["", "%environment"]
+        for env in contents:
+            parts = env.split()
+            ret.append('export {}="{}"'.format(parts[0], env.lstrip(parts[0]).strip(" ")))
+        return ret
+
+    def _label(self, contents: list[str]) -> list[str]:
+        ret: list[str] = ["", "%labels"]
+        for label in contents:
+            parts = label.split()
+            ret.append("{} {}".format(parts[0], label.lstrip(parts[0]).strip(" ")))
+        return ret
+
+    def _entry(self, contents: list[str]) -> list[str]:
+        return ["", "%runscript", "{}".format(contents[0])]
+
+    def generate_build_cmd(self, src: str, dest: str, args: list = None) -> str:
+        cmd: list[str] = ["{} build".format(self.executable)]
+        # arguments
+        if args is not None and len(args) > 0:
+            cmd.append(" ".join(_ for _ in args) if args is not None else "")
+        # destination
+        cmd.append("{}".format(dest))
+        # script
+        cmd.append("{}".format(src))
+        return " ".join(_ for _ in cmd) + ";"
+
+    def format_image_name(self, path: Path, tag: str) -> str:
+        return "{}{}".format(Path.joinpath(path, tag), ".sif" if ".sif" not in tag else "")
+
+    def clean_up_old_image_tag(self, name: str) -> str:
+        return "echo"
+
+    def build_exists(self, name: str) -> bool:
+        if Path(name).is_file():
+            return True
+        return False
+
+    def generate_final_image_cmd(self, src: str, dest: str) -> str:
+        return "cp {} {}".format(src, dest)
+
+
+class Docker(Backend):
+    """Docker backend."""
+
+    def __init__(self):
+        super().__init__(name="docker", executable="docker")
+
+    def _from(self, contents: list[str]) -> list[str]:
+        return [f"FROM {contents[0]}"]
+
+    def _arguments(self, all_contents: dict[str, list[str]]) -> list[str]:
+        ret: list[str] = list()
+        for si in all_contents.keys():
+            for li in range(len(all_contents[si])):
+                res: re_Match[str] = re_match(r".*(@@\s*(\S+)\s*@@).*", all_contents[si][li])
+                if res is not None:
+                    if len(res.group(2).split()) != 1:
+                        raise TemplateSyntaxError("Arguments cannot have spaces in their names!")
+                    else:
+                        ret.append("ARG {}".format(res.group(2)))
+                        all_contents[si][li] = _substitute(
+                            all_contents[si][li],
+                            {res.group(2): "${}".format(res.group(2))},
+                            r"@@\s*(\S+)\s*@@",
+                        )
+        if len(ret) > 0:
+            ret.insert(0, "")
+        return ret
+
+    def _copy(self, contents: list[str]) -> list[str]:
+        ret: list[str] = [""]
+        for ln in contents:
+            if len(ln.split()) != 2:
+                raise TemplateSyntaxError("Entries in @copy can only have one source and destination!", ln)
+            ret.append(f"COPY {ln}")
+        return ret
+
+    def _run(self, contents: list[str], label_contents: list[str]) -> list[str]:
+        ret: list[str] = [""]
+        for cmd in contents:
+            # process !envar directives
+            alt_cmd = cmd
+            if re_match(r"^!envar\s+.*", cmd):
+                res = re_match(r"^!envar\s+(?P<name>\S+)\s+(?P<value>.*)$", cmd)
+                alt_cmd = 'export {name}="{value}"'.format(**res.groupdict())
+                label_contents.append("{name} {value}".format(**res.groupdict()))
+            # generate line
+            ln = ""
+            # place RUN on the first line
+            if cmd == contents[0]:
+                ln += "RUN "
+            else:
+                # indent following lines
+                ln += "    "
+            ln += alt_cmd
+            # add '&& \\' to all but the last line
+            if cmd != contents[-1] and cmd[-1] != '\\': # ignore line that end in an escape
+                ln += " && \\"
+            ret.append(ln)
+        return ret
+
+    def _env(self, contents: list[str]) -> list[str]:
+        ret: list[str] = [""]
+        for env in contents:
+            parts = env.split()
+            # generate line
+            ln = ""
+            # add ENV to the first line
+            if env == contents[0]:
+                ln += "ENV "
+            else:
+                # indent following lines
+                ln += "    "
+            ln += f"{parts[0]}=\"{env.lstrip(parts[0]).strip(' ')}\""
+            # add '\\' to all but the last line
+            if env != contents[-1]:
+                ln += " \\"
+            ret.append(ln)
+        return ret
+
+    def _label(self, contents: list[str]) -> list[str]:
+        ret: list[str] = [""]
+        for label in contents:
+            parts = label.split()
+            if len(parts) != 2:
+                raise TemplateSyntaxError("Label '{}' must have two parts!".format(label))
+            # generate line
+            ln = ""
+            # add LABEL to the first line
+            if label == contents[0]:
+                ln += "LABEL "
+            else:
+                # indent following lines
+                ln += "    "
+            ln += f"{parts[0]}=\"{label.lstrip(parts[0]).strip(' ')}\""
+            # add '\\' to all but the last line
+            if label != contents[-1]:
+                ln += " \\"
+            ret.append(ln)
+        return ret
+
+    def _entry(self, contents: list[str]) -> list[str]:
+        return ["", "ENTRYPOINT {}".format(contents[0].split())]
+
+    def generate_build_cmd(self, src: str, dest: str, args: list = None) -> str:
+        cmd: list[str] = ["{} build".format(self.executable)]
+        # arguments
+        if args is not None and len(args) > 0:
+            cmd.append(" ".join(_ for _ in args) if args is not None else "")
+        # script
+        cmd.append("-f {}".format(src))
+        # destination
+        cmd.append("-t {}".format(dest))
+        # build dir
+        cmd.append(".")
+        return " ".join(_ for _ in cmd) + ";"
+
+    def format_image_name(self, path: Path, tag: str) -> str:
+        return "{}{}{}".format("localhost/" if "/" not in tag else "", tag, ":latest" if ":" not in tag else "")
+
+    def clean_up_old_image_tag(self, name: str) -> str:
+        return "{} rmi {}".format(self.executable, name)
+
+    def build_exists(self, name: str) -> bool:
+        return False
+
+    def generate_final_image_cmd(self, src: str, dest: str) -> str:
+        return "{} tag {} {}".format(self.executable, src, dest)
+
+
 class Podman(Backend):
     """Podman backend."""
 
@@ -355,7 +578,7 @@ class Podman(Backend):
         return "{}{}{}".format("localhost/" if "/" not in tag else "", tag, ":latest" if ":" not in tag else "")
 
     def clean_up_old_image_tag(self, name: str) -> str:
-        return "podman rmi {}".format(name)
+        return "{} rmi {}".format(self.executable, name)
 
     def build_exists(self, name: str) -> bool:
         return False
@@ -364,17 +587,17 @@ class Podman(Backend):
         return "{} tag {} {}".format(self.executable, src, dest)
 
 
-class Apptainer(Backend):
-    """Apptainer backend."""
+class Singularity(Backend):
+    """Singularity backend."""
 
     def __init__(self):
-        super().__init__(name="apptainer", executable="apptainer")
+        super().__init__(name="singularity", executable="singularity")
 
     def _from(self, contents: list[str]) -> list[str]:
         ret: list[str] = list()
         if re_match(r"^.*\.sif$", contents[0]):
             ret.append("Bootstrap: localimage")
-        elif re_match(r"^.*\/.*:.*$", contents[0]):
+        elif re_match(r"^.*/.*:.*$", contents[0]):
             ret.append("Bootstrap: docker")
         else:
             raise TemplateSyntaxError("Unknown source format in @from!", contents[0])
@@ -460,10 +683,14 @@ class Apptainer(Backend):
 
 def get_backend() -> Backend:
     backend = config.get("velocity:backend")
-    if backend == "podman":
-        b = Podman()
-    elif backend == "apptainer":
+    if backend == "apptainer":
         b = Apptainer()
+    elif backend == "docker":
+        b = Docker()
+    elif backend == "podman":
+        b = Podman()
+    elif backend == "singularity":
+        b = Singularity()
     else:
         raise BackendNotSupported(backend)
 
