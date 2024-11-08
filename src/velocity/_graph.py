@@ -172,6 +172,12 @@ class Image:
 
     def satisfies(self, spec: str) -> bool:
         """Test if this node satisfies the given spec."""
+
+        # return true if spec has no condition
+        if re_fullmatch(r"^\s*$", spec):
+            return True
+
+        # else evaluate conditional
         name_version_regex: str = (
             r"^(?P<name>{})(?:(?:@(?P<left>[\d\.]+)(?!@))?(?:@?(?P<colen>:)(?P<right>[\d\.]+)?)?)?$".format(self.name)
         )
@@ -767,7 +773,6 @@ class ImageRepo:
 
         # pre-burner graph
         for constraint in self.constraints:
-            pass
             for image in images:
                 if image.apply_constraint("{} {}".format(constraint[0], constraint[1]), constraint[2], constraint[3]):
                     images_changed = True

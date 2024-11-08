@@ -8,7 +8,9 @@ from colorama import Fore, Style
 from ._graph import ImageRepo, Image
 from ._build import ImageBuilder
 from ._print import header_print, indent_print, TextBlock, bare_print
+from re import fullmatch as re_fullmatch
 from ._config import config
+from._exceptions import InvalidCLIArgumentFormat
 
 ############################################################
 # Parse Args
@@ -40,10 +42,14 @@ build_parser.add_argument("-d", "--dry-run", action="store_true", help="dry run 
 build_parser.add_argument("targets", type=str, nargs="+", help="build targets")
 build_parser.add_argument("-n", "--name", action="store", help="name of complete image")
 build_parser.add_argument(
-    "-l", "--leave-tags", action="store_true", help="do not clean up intermediate build tags (only applies to podman)"
+    "-l", "--leave-tags", action="store_true", help="do not clean up intermediate build tags (only applies to dockerish backends)"
 )
 build_parser.add_argument("-v", "--verbose", action="store_true", help="print helpful debug/runtime information")
 build_parser.add_argument("-c", "--clean", action="store_true", help="run clean build (delete cached builds)")
+build_parser.add_argument("-A", "--argument", action="append", dest="arguments", default=list(),
+                          help='define an argument (e.g -A "value: --disable-cache; when: backend=apptainer")')
+build_parser.add_argument("-V", "--variable", action="append", dest="variables", default=list(),
+                          help='define a variable (e.g -V "name: example; value: 1234")')
 
 # create avail_parser
 avail_parser = sub_parsers.add_parser("avail", help="lookup available images")
@@ -55,6 +61,38 @@ spec_parser.add_argument("targets", type=str, nargs="+", help="spec targets")
 
 # parse args
 args = parser.parse_args()
+
+# parse arguments & variables
+for argument in args.arguments:
+    try:
+        constructed_arg: dict = dict()
+        a_split: list = argument.split(";")
+        for a_item in a_split:
+            parts: dict = re_fullmatch(r"^\s*(?P<key>\S+)\s*:\s*(?P<value>\S+)\s*$", a_item).groupdict()
+            constructed_arg[parts["key"]] = parts["value"]
+        prev_arguments: list | None = config.get("constraints:arguments", warn_on_miss=False)
+        if prev_arguments is None:
+            config.set("constraints:arguments", [constructed_arg, ])
+        else:
+            prev_arguments.append(constructed_arg)
+            config.set("constraints:arguments", prev_arguments)
+    except AttributeError:
+        raise InvalidCLIArgumentFormat("Invalid format in '{}'".format(argument))
+for variable in args.variables:
+    try:
+        constructed_var: dict = dict()
+        v_split: list = variable.split(";")
+        for v_item in v_split:
+            parts: dict = re_fullmatch(r"^\s*(?P<key>\S+)\s*:\s*(?P<value>\S+)\s*$", v_item).groupdict()
+            constructed_var[parts["key"]] = parts["value"]
+        prev_variables: list | None = config.get("constraints:variables", warn_on_miss=False)
+        if prev_variables is None:
+            config.set("constraints:variables", [constructed_var, ])
+        else:
+            prev_variables.append(constructed_var)
+            config.set("constraints:variables", prev_variables)
+    except AttributeError:
+        raise InvalidCLIArgumentFormat("Invalid format in '{}'".format(variable))
 
 ############################################################
 # apply user run time arguments over settings
@@ -119,7 +157,7 @@ elif args.subcommand == "avail":
             grouped[node.name] = list()
         grouped[node.name].append(node)
 
-    relevant_images = list(grouped.keys())
+    relevant_images: list = list(grouped.keys())
     if len(args.targets) > 0:
         relevant_images = list(filter(lambda x: x in args.targets, relevant_images))
     relevant_images.sort()

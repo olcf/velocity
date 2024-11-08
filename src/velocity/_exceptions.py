@@ -76,3 +76,10 @@ class InvalidConfigIdentifier(Exception):
 
     def __init__(self, *args) -> None:
         super().__init__(*args)
+
+
+class InvalidCLIArgumentFormat(Exception):
+    """Invalid format for a CLI argument."""
+
+    def __init__(self, *args) -> None:
+        super().__init__(*args)
