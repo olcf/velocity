@@ -47,6 +47,7 @@ build_parser.add_argument("-c", "--clean", action="store_true", help="run clean 
 
 # create avail_parser
 avail_parser = sub_parsers.add_parser("avail", help="lookup available images")
+avail_parser.add_argument("targets", type=str, nargs="*", help="build targets")
 
 # create spec_parser
 spec_parser = sub_parsers.add_parser("spec", help="lookup image dependencies")
@@ -117,11 +118,14 @@ elif args.subcommand == "avail":
         if node.name not in grouped:
             grouped[node.name] = list()
         grouped[node.name].append(node)
-    ordered = list(grouped.keys())
-    ordered.sort()
+
+    relevant_images = list(grouped.keys())
+    if len(args.targets) > 0:
+        relevant_images = list(filter(lambda x: x in args.targets, relevant_images))
+    relevant_images.sort()
 
     # print
-    for group in ordered:
+    for group in relevant_images:
         header_print([TextBlock(group, fore=Fore.RED, style=Style.BRIGHT)])
         deps = grouped[group]
         deps.sort()
