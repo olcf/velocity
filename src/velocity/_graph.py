@@ -570,6 +570,17 @@ class ImageRepo(metaclass=OurMeta):
             raise NotADirectoryError(f"Image path {path} is not a directory!")
 
         for name in [x for x in p.iterdir() if x.is_dir() and x.name[0] != "."]:
+            # check for duplicate image
+            duplicate_image = False
+            for _i in self.images:
+                if _i.name == name.name:
+                    duplicate_image = name
+                    break
+            if duplicate_image:
+                logger.info("The image definition in '{}' is being skipped because it has the same name as an already imported image.".format(duplicate_image))
+                continue
+
+            # process metadata
             with open(name.joinpath("specs.yaml"), "r") as fi:
                 specs_file = yaml_safe_load(fi)
                 # add versions
