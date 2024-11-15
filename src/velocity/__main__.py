@@ -24,8 +24,8 @@ parser.add_argument(
     "-v", "--version", action="version", version=f"%(prog)s {version('olcf-velocity')}", help="program version"
 )
 parser.add_argument(
-    "-D",
-    "--debug",
+    "-L",
+    "--logging-level",
     choices=["TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"],
     help="set debug output level",
 )
@@ -63,42 +63,44 @@ spec_parser.add_argument("targets", type=str, nargs="+", help="spec targets")
 args = parser.parse_args()
 
 # parse arguments & variables
-for argument in args.arguments:
-    try:
-        constructed_arg: dict = dict()
-        a_split: list = argument.split(";")
-        for a_item in a_split:
-            parts: dict = re_fullmatch(r"^\s*(?P<key>\S+)\s*:\s*(?P<value>\S+)\s*$", a_item).groupdict()
-            constructed_arg[parts["key"]] = parts["value"]
-        prev_arguments: list | None = config.get("constraints:arguments", warn_on_miss=False)
-        if prev_arguments is None:
-            config.set("constraints:arguments", [constructed_arg, ])
-        else:
-            prev_arguments.append(constructed_arg)
-            config.set("constraints:arguments", prev_arguments)
-    except AttributeError:
-        raise InvalidCLIArgumentFormat("Invalid format in '{}'".format(argument))
-for variable in args.variables:
-    try:
-        constructed_var: dict = dict()
-        v_split: list = variable.split(";")
-        for v_item in v_split:
-            parts: dict = re_fullmatch(r"^\s*(?P<key>\S+)\s*:\s*(?P<value>\S+)\s*$", v_item).groupdict()
-            constructed_var[parts["key"]] = parts["value"]
-        prev_variables: list | None = config.get("constraints:variables", warn_on_miss=False)
-        if prev_variables is None:
-            config.set("constraints:variables", [constructed_var, ])
-        else:
-            prev_variables.append(constructed_var)
-            config.set("constraints:variables", prev_variables)
-    except AttributeError:
-        raise InvalidCLIArgumentFormat("Invalid format in '{}'".format(variable))
+if "argument" in args:
+    for argument in args.arguments:
+        try:
+            constructed_arg: dict = dict()
+            a_split: list = argument.split(";")
+            for a_item in a_split:
+                parts: dict = re_fullmatch(r"^\s*(?P<key>\S+)\s*:\s*(?P<value>\S+)\s*$", a_item).groupdict()
+                constructed_arg[parts["key"]] = parts["value"]
+            prev_arguments: list | None = config.get("constraints:arguments", warn_on_miss=False)
+            if prev_arguments is None:
+                config.set("constraints:arguments", [constructed_arg, ])
+            else:
+                prev_arguments.append(constructed_arg)
+                config.set("constraints:arguments", prev_arguments)
+        except AttributeError:
+            raise InvalidCLIArgumentFormat("Invalid format in '{}'".format(argument))
+if "variables" in args:
+    for variable in args.variables:
+        try:
+            constructed_var: dict = dict()
+            v_split: list = variable.split(";")
+            for v_item in v_split:
+                parts: dict = re_fullmatch(r"^\s*(?P<key>\S+)\s*:\s*(?P<value>\S+)\s*$", v_item).groupdict()
+                constructed_var[parts["key"]] = parts["value"]
+            prev_variables: list | None = config.get("constraints:variables", warn_on_miss=False)
+            if prev_variables is None:
+                config.set("constraints:variables", [constructed_var, ])
+            else:
+                prev_variables.append(constructed_var)
+                config.set("constraints:variables", prev_variables)
+        except AttributeError:
+            raise InvalidCLIArgumentFormat("Invalid format in '{}'".format(variable))
 
 ############################################################
 # apply user run time arguments over settings
 ############################################################
-if args.debug is not None:
-    config.set("velocity:debug", args.debug)
+if args.logging_level is not None:
+    config.set("velocity:logging:level", args.logging_level)
 if args.system is not None:
     config.set("velocity:system", args.system)
 if args.backend is not None:
@@ -108,13 +110,9 @@ if args.distro is not None:
 
 # setup logging and log startup
 logger.enable("velocity")
-logger.configure(handlers=[{"sink": sys.stdout, "level": config.get("velocity:debug")}])
-logger.debug(
-    "Starting velocity {},{},{}.".format(
-        config.get("velocity:system"), config.get("velocity:backend"), config.get("velocity:distro")
-    )
-)
-logger.trace(config.get(""))
+logger.configure(handlers=[{"sink": sys.stdout, "level": config.get("velocity:logging:level")}])
+logger.debug("Starting velocity.")
+logger.debug(config.get(""))
 
 ############################################################
 # Load images

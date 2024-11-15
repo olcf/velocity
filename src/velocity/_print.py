@@ -1,9 +1,10 @@
 """Printing formatter."""
 
 from colorama import Fore, Back, Style
+from ._tools import OurMeta, trace_function
 
 
-class TextBlock:
+class TextBlock(metaclass=OurMeta):
     """Defines a block of text and its styling."""
 
     def __init__(
@@ -19,6 +20,7 @@ class TextBlock:
         self.style = style
 
 
+@trace_function
 def bare_print(tb: list[TextBlock]) -> None:
     """Print a list of TextBlocks."""
     for text_block in tb:
@@ -36,6 +38,7 @@ def bare_print(tb: list[TextBlock]) -> None:
     print()
 
 
+@trace_function
 def header_print(tb: list[TextBlock]) -> None:
     """Print a list of TextBlocks with a preceding '==> ' block."""
     text_blocks = [TextBlock("==> ", fore=Fore.GREEN, style=Style.BRIGHT)]
@@ -43,6 +46,7 @@ def header_print(tb: list[TextBlock]) -> None:
     bare_print(text_blocks)
 
 
+@trace_function
 def indent_print(tb: list[TextBlock]) -> None:
     """Print a list of TextBlocks with a preceding 4 spaces."""
     text_blocks = [TextBlock("    ", fore=Fore.GREEN, style=Style.BRIGHT)]

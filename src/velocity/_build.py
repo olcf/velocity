@@ -14,8 +14,10 @@ from ._config import config
 from ._graph import Image
 from ._print import header_print, indent_print, TextBlock
 from ._backends import get_backend, Backend
+from ._tools import OurMeta, trace_function
 
 
+@trace_function
 def read_pipe(pipe: PIPE, topic: SimpleQueue, prefix: str, log: SimpleQueue) -> None:
     """Read a subprocess PIPE and place lines on topic queue and log queue."""
     while True:
@@ -27,6 +29,7 @@ def read_pipe(pipe: PIPE, topic: SimpleQueue, prefix: str, log: SimpleQueue) -> 
             log.put("{} {}".format(prefix, ln.strip("\n")))
 
 
+@trace_function
 def run(cmd: str, log_file: Path = None, verbose: bool = False) -> None:
     """Run a system command logging all output to a file and print if verbose."""
     # open log file (set to False if none is provided)
@@ -73,7 +76,7 @@ def run(cmd: str, log_file: Path = None, verbose: bool = False) -> None:
         exit(process.poll())
 
 
-class ImageBuilder:
+class ImageBuilder(metaclass=OurMeta):
     """Image building class."""
 
     def __init__(

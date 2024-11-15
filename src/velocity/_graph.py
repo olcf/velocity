@@ -17,8 +17,10 @@ from networkx import (
 )
 from ._config import config
 from ._exceptions import InvalidImageVersionError, CannotFindDependency, EdgeViolatesDAG, NoAvailableBuild
+from ._tools import OurMeta, trace_function
 
 
+@trace_function
 def get_permutations(idx: int, sets: list[list]):
     """
     Get all the possible permutations from a list of lists
@@ -40,7 +42,7 @@ def get_permutations(idx: int, sets: list[list]):
     return permutations
 
 
-class Version:
+class Version(metaclass=OurMeta):
     """Version class."""
 
     def __init__(self, version_specifier: str) -> None:
@@ -147,7 +149,7 @@ class Version:
         return self.vs
 
 
-class Image:
+class Image(metaclass=OurMeta):
     """Velocity container image."""
 
     def __init__(self, name: str, version: str, system: str, backend: str, distro: str, path: str) -> None:
@@ -335,7 +337,7 @@ class DepOp(Enum):
     UN = None
 
 
-class Target:
+class Target(metaclass=OurMeta):
     """Build targets."""
 
     def __init__(self, node: Image, op: DepOp):
@@ -346,7 +348,7 @@ class Target:
         return "Target: {} -> {}".format(self.op, self.node)
 
 
-class ImageGraph(nx_DiGraph):
+class ImageGraph(nx_DiGraph, metaclass=OurMeta):
     """Image dependency graph."""
 
     def __init__(self, **kwargs) -> None:
@@ -521,7 +523,7 @@ class ImageGraph(nx_DiGraph):
         raise NoAvailableBuild("No Available build!")
 
 
-class ImageRepo:
+class ImageRepo(metaclass=OurMeta):
     """Image repository."""
 
     def __init__(self) -> None:

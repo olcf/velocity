@@ -4,7 +4,7 @@ from re import Match as re_Match, sub as re_sub, match as re_match
 from loguru import logger
 from shutil import which as shutil_which
 from pathlib import Path
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from ._exceptions import (
     RepeatedSection,
     LineOutsideOfSection,
@@ -14,8 +14,10 @@ from ._exceptions import (
 )
 from ._config import config
 from ._graph import Image
+from ._tools import OurABCMeta, trace_function
 
 
+@trace_function
 def _substitute(text: str, variables: dict[str, str], regex: str) -> str:
     """Substitute a variables in a string by a regex."""
 
@@ -28,7 +30,7 @@ def _substitute(text: str, variables: dict[str, str], regex: str) -> str:
     return re_sub(regex, _replace, text)
 
 
-class Backend(ABC):
+class Backend(metaclass=OurABCMeta):
     """Abstract class for velocity backend."""
 
     template_sections: list[str] = [
@@ -43,6 +45,7 @@ class Backend(ABC):
     ]
 
     @classmethod
+    @trace_function
     def _get_sections(cls, template: list[str]) -> dict[str, list[str]]:
         """Retrieve the sections from a VTMP."""
 
@@ -83,6 +86,7 @@ class Backend(ABC):
         return sections
 
     @classmethod
+    @trace_function
     def _filter_content(cls, image: Image, text: str) -> str:
         """Filter conditionals and white space from a template line."""
         # handle conditionals
@@ -101,6 +105,7 @@ class Backend(ABC):
         return text
 
     @classmethod
+    @trace_function
     def _load_template(cls, image: Image, variables: dict[str, str]) -> list[str]:
         """Load a template and parse it."""
         template: list[str] = list()
@@ -681,6 +686,7 @@ class Singularity(Backend):
         return "cp {} {}".format(src, dest)
 
 
+@trace_function
 def get_backend() -> Backend:
     backend = config.get("velocity:backend")
     if backend == "apptainer":

@@ -6,9 +6,9 @@ from pathlib import Path
 from os import getlogin as get_username, getenv
 from yaml import safe_load as yaml_safe_load
 from ._exceptions import InvalidConfigIdentifier
+from ._tools import OurMeta
 
-
-class Config:
+class Config(metaclass=OurMeta):
     """Configuration class. Stores configuration as a dictionary."""
 
     def __init__(self) -> None:
@@ -109,8 +109,8 @@ if _config.get("velocity:backend", warn_on_miss=False) is None:
 if _config.get("velocity:distro", warn_on_miss=False) is None:
     _config.set("velocity:distro", "ubuntu")
 
-if _config.get("velocity:debug", warn_on_miss=False) is None:
-    _config.set("velocity:debug", "WARNING")
+if _config.get("velocity:logging:level", warn_on_miss=False) is None:
+    _config.set("velocity:logging:level", "WARNING")
 
 if _config.get("velocity:image_path", warn_on_miss=False) is None:
     image_dir = Path.home().joinpath(".velocity", "images")
