@@ -33,6 +33,12 @@ The `avail` command prints the defined images that can be built.
         6.0.1
         6.1.3
 
+    $ velocity avail gcc
+    ==> gcc
+        12.3.0
+        13.2.0
+        14.1.0
+
 Each image is listed and then indented underneath is a list of the available versions.
 
 `spec`
@@ -40,7 +46,7 @@ Each image is listed and then indented underneath is a list of the available ver
 
 The `spec` command shows the dependencies for a given image (or list of images) in a tree like structure.
 
-.. code-block:: bash
+.. code-block:: text
 
     $ velocity spec rocm
       > rocm@6.1.3-2a35af4
@@ -51,7 +57,7 @@ The `spec` command shows the dependencies for a given image (or list of images) 
 
 The `build` command can be used to build an container image from one or more image definitions.
 
-.. code-block:: bash
+.. code-block:: text
 
     $ velocity build opensuse
     ==> Build Order:
@@ -66,7 +72,7 @@ The `build` command can be used to build an container image from one or more ima
 
 Both the spec and the build command can also take a list of images.
 
-.. code-block:: bash
+.. code-block:: text
 
     $ velocity build opensuse mpich
     ==> Build Order:

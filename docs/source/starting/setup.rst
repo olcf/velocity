@@ -21,7 +21,7 @@ Velocity works by building a set of containers in a chain so that the final cont
 .. important::
 
     Velocity maintains a very hands off approach. It is only as good as the templates/configuration that you write.
-    In general it will assume that a particular build will work unless you tell it otherwise.
+    In general it will assume that a particular build will work (on a system, distro etc.) unless you tell it otherwise.
 
 .. note::
 
@@ -35,6 +35,7 @@ The easiest way to install velocity is to install prebuilt python packages using
 
 .. code-block:: bash
 
+    # note: you will need python 3.10 or greater
     pip install olcf-velocity
 
 Alternatively, you can clone the velocity repository and build/install velocity from source.

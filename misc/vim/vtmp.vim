@@ -1,8 +1,8 @@
 " Vim syntax file
 " Language: Velocity Template
 " Maintainer: Asa Rentschler
-" Latest Revision: September, 19, 2024
-" Velocity Version: 0.1
+" Latest Revision: November, 15, 2024
+" Velocity Version: 0.2
 " Place this file in ~/.vim/syntax/ and add `au BufRead,BufNewFile *.vtmp set filetype=vtmp` to ~/.vimrc
 
 if exists("b:current_syntax")
@@ -13,7 +13,8 @@ endif
 syn match codeComment '>>>.*'
 
 " velocity variables
-syn keyword velocityVariable __backend__ __base__ __distro__ __name__ __system__ __version__ __timestamp__
+syn keyword velocityVariable __arch__ __backend__ __base__ __distro__ __name__ __threads__ __timestamp__ __system__
+syn keyword velocityVariable __version__ __version_major__ __version_minor__ _version_patch__ __version_suffix__
 
 " velocity operatives
 syn match velocityOperative '|'
@@ -40,10 +41,12 @@ syn region conditionalRegion matchgroup=velocityOperative start="??" end="??" co
 
 let b:current_syntax = "vtmp"
 
+setlocal tabstop=4 expandtab
+
 hi def link codeComment Comment
 hi def link sectionHeader Function
-hi def link velocityOperative Operator
+hi def link velocityOperative PreProc
 hi def link velocityVariable Identifier
 hi def link templateVariable Identifier
 hi def link argumentName Identifier
-hi def link conditionalArrow Operator
+hi def link conditionalArrow PreProc

@@ -100,6 +100,10 @@ Sections
 The `@from` section is used to specify the base image to build on top of. Both Podman and Apptainer support pulling
 from docker registries. Apptainer also supports building from a sif file. The `@from` section can only have one line in it.
 
+.. note::
+
+    The Apptainer backend supports oras images as well. Simply use the ``oras://<image_url>`` format.
+
 .. _pre_section:
 
 @pre

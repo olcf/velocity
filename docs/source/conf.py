@@ -15,11 +15,15 @@ author = 'OLCF'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    'sphinx_copybutton'
+]
 
 templates_path = ['_templates']
 exclude_patterns = []
 
+# copybutton configuration
+copybutton_prompt_text = "$ "
 
 
 # -- Options for HTML output -------------------------------------------------

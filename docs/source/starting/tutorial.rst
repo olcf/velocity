@@ -223,10 +223,10 @@ OLCF Images
 Let's extend what we have done so far and explore some more features of Velocity using a base set of image definitions
 provided at https://github.com/olcf/velocity-images. Clone the repository and run:
 
-.. warning::
+.. note::
 
-    You will need to delete the ``opensuse`` image that you made or it will conflict with the OLCF image; however,
-    leave your ``hello-world`` image because we will use it.
+    The ``opensuse`` image in the git repository will override the ``opensuse`` image you just created because velocity
+    selects conflicting images by their order in :ref:`velocity_image_path`.
 
 .. code-block:: bash
 
