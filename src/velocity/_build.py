@@ -255,7 +255,7 @@ class ImageBuilder(metaclass=OurMeta):
         with open(build_file_path, "w") as build_file:
             for line in build_contents:
                 build_file.write(line + "\n")
-                if self.verbose:
+                if self.verbose and not self.backend_engine.build_exists(name):
                     indent_print([TextBlock(line, fore=Fore.YELLOW, style=Style.BRIGHT)])
 
         build_file_path.chmod(0o744)
