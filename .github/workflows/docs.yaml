@@ -5,6 +5,7 @@ on:
   workflow_dispatch: { }
 
 name: docs
+run-name: Deploy Docs [${{ github.sha }}]
 
 permissions:
   contents: read
