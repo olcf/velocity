@@ -1,0 +1,30 @@
+on:
+  push:
+    tags:
+      - v[0-9]*
+
+run-name: Release ${{ github.ref_name }}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "LATEST_RELEASE=$(gh release list | awk '$2 == "Latest" {print $3}')" >> "$GITHUB_ENV"
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+              --repo="$GITHUB_REPOSITORY" \
+              --title="${{ github.ref_name }}" \
+              --notes="Changes between: $LATEST_RELEASE..${{ github.ref_name }}\n$(git log $LATEST_RELEASE..${{ github.ref_name }} --oneline --decorate=false)"

@@ -1,0 +1,25 @@
+on:
+  push:
+    branches:
+      - develop
+      - releases/**
+  pull_request:
+    branches:
+      - develop
+      - releases/**
+
+name: Run Unit Tests
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ github.ref }}"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python3 -m unittest

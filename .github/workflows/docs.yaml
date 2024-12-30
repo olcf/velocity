@@ -1,20 +1,16 @@
-# Deploy Velocity documentation
-name: Deploy Documentation to Pages
-
 on:
-  # trigger on push to develop also allow manual runs
   push:
-    branches: ["develop"]
-  workflow_dispatch:
+    branches:
+      - develop
+  workflow_dispatch: { }
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+name: docs
+
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -26,24 +22,24 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Develop
         uses: actions/checkout@v4
         with:
-          ref: "develop"
+          ref: develop
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      - name: Install dependencies
+          python-version: '3.12'
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install sphinx sphinx-rtd-theme sphinx-copybutton
       - name: Build Docs
         run: |
           cd docs && make html
-      - name: Upload documentation HTML files
+      - name: Upload HTML Files
         uses: actions/upload-pages-artifact@v3
         with:
           path: './docs/build/html'
