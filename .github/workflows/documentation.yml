@@ -1,5 +1,5 @@
 # Deploy Velocity documentation
-name: Deploy documentation to Pages
+name: Deploy Documentation to Pages
 
 on:
   # trigger on push to develop also allow manual runs
