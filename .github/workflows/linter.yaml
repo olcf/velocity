@@ -8,7 +8,8 @@ on:
       - develop
       - releases/**
 
-name: Lint Code
+name: linter
+run-name: Run Linter [${{ github.sha }}]
 
 jobs:
   lint:
@@ -25,4 +26,4 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff
       - run: |
-          python3 -m unittest
+          ruff check
