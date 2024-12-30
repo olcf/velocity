@@ -12,7 +12,8 @@ dependencies = [
     "pyyaml",
     "networkx",
     "colorama",
-    "loguru"
+    "loguru",
+    "typing_extensions"
 ]
 
 [project.urls]

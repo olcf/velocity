@@ -3,7 +3,8 @@
 from loguru import logger
 from platform import processor as arch
 from pathlib import Path
-from os import getlogin as get_username, getenv
+from os import getenv
+from getpass import getuser
 from yaml import safe_load as yaml_safe_load
 from ._exceptions import InvalidConfigIdentifier
 from ._tools import OurMeta
@@ -99,6 +100,9 @@ if getenv("VELOCITY_IMAGE_PATH") is not None:
 if getenv("VELOCITY_BUILD_DIR") is not None:
     _config.set("velocity:build_dir", getenv("VELOCITY_BUILD_DIR"))
 
+if getenv("VELOCITY_LOGGING_LEVEL") is not None:
+    _config.set("velocity:logging:level", getenv("VELOCITY_LOGGING_LEVEL"))
+
 # set defaults for un-configured items
 if _config.get("velocity:system", warn_on_miss=False) is None:
     _config.set("velocity:system", arch())
@@ -118,7 +122,7 @@ if _config.get("velocity:image_path", warn_on_miss=False) is None:
     _config.set("velocity:image_path", image_dir.__str__())
 
 if _config.get("velocity:build_dir", warn_on_miss=False) is None:
-    _config.set("velocity:build_dir", Path("/tmp").joinpath(get_username(), "velocity").__str__())
+    _config.set("velocity:build_dir", Path("/tmp").joinpath(getuser(), "velocity").__str__())
 
 # export
 config = _config
