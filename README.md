@@ -2,9 +2,10 @@
 
 -----------------------------------------------------------
 
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/olcf/velocity/tests?event=push&style=flat-square&label=test)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/olcf/velocity/docs?branch=develop&event=push&style=flat-square&label=deploy%20docs)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/olcf/velocity/build?event=release&style=flat-square&label=build)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/olcf/velocity/tests.yaml?style=flat-square&label=tests)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/olcf/velocity/docs.yaml?style=flat-square&label=docs)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/olcf/velocity/build.yaml?event=release&style=flat-square&label=build)
+![GitHub - Version](https://img.shields.io/github/v/release/olcf/velocity?display_name=tag&style=flat-square&label=github&color=%23782D84)
 [![PyPI - Version](https://img.shields.io/pypi/v/olcf-velocity?style=flat-square&color=%23FFD242)](https://pypi.org/project/olcf-velocity)
 [![Spack](https://img.shields.io/spack/v/py-olcf-velocity?style=flat-square&color=%230F3A80)](https://packages.spack.io/package.html?name=py-olcf-velocity)
 
