@@ -1,20 +1,23 @@
 """Build velocity images."""
 
-import datetime
-import shutil
-import os
-from timeit import default_timer as timer
-from subprocess import Popen, PIPE
-from queue import SimpleQueue
-from threading import Thread
+from datetime import datetime, timedelta
+from os import chdir, cpu_count
 from pathlib import Path
-from colorama import Fore, Style
 from platform import processor as arch
-from ._config import config
-from ._graph import Image
-from ._print import header_print, indent_print, TextBlock
-from ._backends import get_backend, Backend
-from ._tools import OurMeta, trace_function
+from shutil import copy as shutil_copy, copytree, rmtree
+from threading import Thread
+from timeit import default_timer as timer
+from queue import SimpleQueue
+from subprocess import PIPE, Popen
+
+from colorama import Fore, Style
+from loguru import logger
+
+from velocity._config import config
+from velocity._graph import Image
+from velocity._print import TextBlock, header_print, indent_print
+from velocity._backends import Backend, get_backend
+from velocity._tools import OurMeta, trace_function
 
 
 @trace_function
@@ -33,6 +36,7 @@ def read_pipe(pipe: PIPE, topic: SimpleQueue, prefix: str, log: SimpleQueue) -> 
 def run(cmd: str, log_file: Path = None, verbose: bool = False) -> None:
     """Run a system command logging all output to a file and print if verbose."""
     # open log file (set to False if none is provided)
+    logger.debug("Running command: {}".format(cmd))
     file = open(log_file, "w") if log_file is not None else False
 
     log = SimpleQueue()
@@ -118,7 +122,7 @@ class ImageBuilder(metaclass=OurMeta):
         if self.clean_build_dir:
             for entry in self.build_dir.iterdir():
                 if entry.is_dir():
-                    shutil.rmtree(entry)
+                    rmtree(entry)
                 else:
                     entry.unlink()
 
@@ -135,7 +139,7 @@ class ImageBuilder(metaclass=OurMeta):
         tag = str(
             self.build_name
             if self.build_name is not None
-            else "{}__{}-{}".format(
+            else "{}_{}-{}".format(
                 "_".join(f"{bu.name}-{bu.version}" for bu in reversed(self.build_units)),
                 config.get("velocity:system"),
                 config.get("velocity:distro"),
@@ -152,7 +156,7 @@ class ImageBuilder(metaclass=OurMeta):
                 run(self.backend_engine.clean_up_old_image_tag(bn))
 
         # go back to the starting dir
-        os.chdir(pwd)
+        chdir(pwd)
 
     def _build_image(self, unit: Image, src_image: str, name: str):
         """Build an individual image."""
@@ -171,7 +175,7 @@ class ImageBuilder(metaclass=OurMeta):
         # create build dir and go to it
         build_sub_dir = Path.joinpath(self.build_dir, "{}-{}-{}".format(unit.name, unit.version, unit.id))
         build_sub_dir.mkdir(mode=0o744, exist_ok=True)
-        os.chdir(build_sub_dir)
+        chdir(build_sub_dir)
 
         # copy additional files
         if len(unit.files) > 0:
@@ -192,9 +196,9 @@ class ImageBuilder(metaclass=OurMeta):
                         ]
                     )
                 if Path.joinpath(unit.path, "files", entry).is_dir():
-                    shutil.copytree(Path.joinpath(unit.path, "files", entry), Path.joinpath(build_sub_dir, entry))
+                    copytree(Path.joinpath(unit.path, "files", entry), Path.joinpath(build_sub_dir, entry))
                 else:
-                    shutil.copy(Path.joinpath(unit.path, "files", entry), Path.joinpath(build_sub_dir, entry))
+                    shutil_copy(Path.joinpath(unit.path, "files", entry), Path.joinpath(build_sub_dir, entry))
 
         # parse template and create script...
         header_print([TextBlock(unit.id, fore=Fore.RED, style=Style.BRIGHT), TextBlock(": GENERATING SCRIPT ...")])
@@ -207,21 +211,20 @@ class ImageBuilder(metaclass=OurMeta):
             )
 
         # get and update script variables
-        script_variables = unit.variables.copy()
+        script_variables = dict()
         script_variables.update({"__name__": unit.name})
         script_variables.update({"__version__": str(unit.version)})
         script_variables.update({"__version_major__": str(unit.version.major)})
         script_variables.update({"__version_minor__": str(unit.version.minor)})
         script_variables.update({"__version_patch__": str(unit.version.patch)})
         script_variables.update({"__version_suffix__": str(unit.version.suffix)})
-        script_variables.update({"__timestamp__": str(datetime.datetime.now())})
-        script_variables.update(
-            {"__threads__": str(int(os.cpu_count() * 0.75) if int(os.cpu_count() * 0.75) < 16 else 16)}
-        )
+        script_variables.update({"__timestamp__": str(datetime.now())})
+        script_variables.update({"__threads__": str(int(cpu_count() * 0.75) if int(cpu_count() * 0.75) < 16 else 16)})
         script_variables.update({"__arch__": arch()})
         if src_image is not None:
             script_variables.update({"__base__": src_image})
         script_variables.update(self.variables)
+        script_variables.update(unit.variables)
 
         script = self.backend_engine.generate_script(unit, script_variables)
         # write out script
@@ -279,7 +282,7 @@ class ImageBuilder(metaclass=OurMeta):
                 TextBlock(" ("),
                 TextBlock("{}@{}".format(unit.name, unit.version), fore=Fore.MAGENTA, style=Style.BRIGHT),
                 TextBlock(") BUILT ["),
-                TextBlock(str(datetime.timedelta(seconds=round(end - start))), fore=Fore.MAGENTA, style=Style.BRIGHT),
+                TextBlock(str(timedelta(seconds=round(end - start))), fore=Fore.MAGENTA, style=Style.BRIGHT),
                 TextBlock("]"),
             ]
         )
