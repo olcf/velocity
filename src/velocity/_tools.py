@@ -1,14 +1,13 @@
 """Misc tools."""
 
-from functools import wraps
-from inspect import isfunction, stack, getmodulename
-from loguru import logger
-from re import fullmatch as re_fullmatch
 from abc import ABCMeta
+from functools import wraps
+from inspect import isfunction
+from loguru import logger
+from re import compile as re_compile
 
 
-# this variable holds the current trace indent
-current_trace_indent: list = [0, ]
+builtin_regex = re_compile(r"^__\w+__$")
 
 
 def trace_function(_function):
@@ -27,46 +26,31 @@ def trace_function(_function):
         # update call number
         wrapper.call_count = wrapper.call_count + 1
 
-        # pre-call update indent
-        current_trace_indent[0] = current_trace_indent[0] + 1
-
-        # get caller info
-        current_stack = stack()[1]
-        calling_lineno: int = current_stack.lineno
-        calling_module: str = "velocity.{}".format(getmodulename(current_stack.filename))
-
-        # construct trace message (note: 'this_call_depth' will always be >= 1)
-        depth_str: str = "|{}|".format(" " * (current_trace_indent[0] * 2))
+        # construct trace message
         q_name_str: str = "function '{}:{} {}'".format(
             _function.__module__,
             _function.__code__.co_firstlineno,
             _function.__qualname__
         )
-        call_number_str: str = "call #{} from {}:{} ".format(wrapper.call_count, calling_module, calling_lineno)
+        call_number_str: str = "call #{} ".format(wrapper.call_count)
         argument_names: tuple[str] = _function.__code__.co_varnames[:_function.__code__.co_argcount]
         argument_str: str = ""
         for a in range(len(args)):
             if argument_names[a] == "self":
                 argument_str += "self, "
             else:
-                argument_str += "{}: {} ='{}', ".format(argument_names[a], type(args[a]).__name__, args[a])
+                argument_str += "{}: {} = '{}', ".format(argument_names[a], type(args[a]).__name__, args[a])
         for a in argument_names:
             if a in kwargs:
-                argument_str += "{}: {} ='{}', ".format(a, type(kwargs[a]).__name__, kwargs[a])
+                argument_str += "{}: {} = '{}', ".format(a, type(kwargs[a]).__name__, kwargs[a])
         argument_str = "with ({})".format(argument_str)
         argument_str = argument_str.replace("\x1b", "\\x1b")    # neutralize color escape sequences
 
         # log trace
-        logger.trace("{} {} {} {}".format(depth_str, q_name_str, call_number_str, argument_str))
+        logger.opt(depth=1).trace("{} {} {}".format(q_name_str, call_number_str, argument_str))
 
-        # call _function
-        result = _function(*args, **kwargs)
-
-        # post-call update indent
-        current_trace_indent[0] = current_trace_indent[0] - 1
-
-        # return results of calling _function
-        return result
+        # call inner function
+        return _function(*args, **kwargs)
 
     # set the wrapper call count
     wrapper.call_count = 0
@@ -80,7 +64,7 @@ class OurMeta(type):
     in the form __\w+__ except for __init__."""
     def __new__(cls, *args, **kwargs):
         for name, value in args[2].items():
-            if isfunction(value) and (not re_fullmatch(r"^__\w+__$", name) or name == "__init__"):
+            if isfunction(value) and (not builtin_regex.fullmatch(name) or name == "__init__"):
                 args[2][name] = trace_function(args[2][name])
         return super().__new__(cls, args[0], args[1], args[2])
 
@@ -90,6 +74,6 @@ class OurABCMeta(ABCMeta):
     functions in the form __\w+__ except for __init__."""
     def __new__(cls, *args, **kwargs):
         for name, value in args[2].items():
-            if isfunction(value) and (not re_fullmatch(r"^__\w+__$", name) or name == "__init__"):
+            if isfunction(value) and (not builtin_regex.fullmatch(name) or name == "__init__"):
                 args[2][name] = trace_function(args[2][name])
         return super().__new__(cls, args[0], args[1], args[2])
