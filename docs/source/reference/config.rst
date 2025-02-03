@@ -29,7 +29,7 @@ This variable specifies the container backend that should be used (e.g podman).
 
 .. important::
 
-    Available backends are ``apptainer``, ``docker``, ``podman`` and ``singularity``.
+    Available backends are ``apptainer``, ``docker``, ``openshift``, ``podman`` and ``singularity``.
 
 `VELOCITY_DISTRO`
 -----------------

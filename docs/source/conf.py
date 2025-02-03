@@ -3,6 +3,12 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 import datetime as dt
+import sys
+
+from pathlib import Path
+
+
+sys.path.append(str(Path(__file__).parent.parent.parent.joinpath("src").absolute()))
 
 
 # -- Project information -----------------------------------------------------
@@ -16,7 +22,9 @@ author = 'OLCF'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx_copybutton'
+    'sphinx_copybutton',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon'
 ]
 
 templates_path = ['_templates']

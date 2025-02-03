@@ -3,8 +3,6 @@
 Technical Docs
 ##############
 
-
-
 .. toctree::
    :maxdepth: 2
 
@@ -12,3 +10,4 @@ Technical Docs
    vtmp
    specs
    build
+   python_api

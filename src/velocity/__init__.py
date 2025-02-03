@@ -9,57 +9,109 @@ from velocity._print import TextBlock, header_print, indent_print  # noqa: E402
 
 # config functions
 def get_system() -> str:
-    """Get the system."""
+    """Get the system.
+
+    Returns
+    -------
+    str
+        The current system.
+    """
 
     return config.get("velocity:system")
 
 
 def set_system(system: str) -> None:
-    """Set the system."""
+    """Set the system.
+
+    Parameters
+    ----------
+    system : str
+        New value for system.
+    """
 
     config.set("velocity:system", str(system))
 
 
 def get_backend() -> str:
-    """Get the backend."""
+    """Get the backend.
+
+    Returns
+    -------
+    str
+        The current backend.
+    """
 
     return config.get("velocity:backend")
 
 
 def set_backend(backend: str) -> None:
-    """Set the backend."""
+    """Set the backend.
+
+    Parameters
+    ----------
+    backend : str
+        New value for backend.
+    """
 
     config.set("velocity:backend", str(backend))
 
 
 def get_distro() -> str:
-    """Get the distro."""
+    """Get the distro.
+
+    Returns
+    -------
+    str
+        The current distro.
+    """
 
     return config.get("velocity:distro")
 
 
 def set_distro(distro: str) -> None:
-    """Set the distro."""
+    """Set the distro.
+
+    Parameters
+    ----------
+    distro : str
+        New value for distro.
+    """
 
     config.set("velocity:distro", str(distro))
 
 
 def build(
-    specs: str,
+    targets: str,
     name: str = None,
     dry_run: bool = False,
     leave_tags: bool = False,
     verbose: bool = False,
     clean: bool = False,
 ) -> None:
-    """Build an image from a spec string."""
+    """Build an image.
+
+    Parameters
+    ----------
+    targets: str
+        A string of build targets e.g. '`gcc@12.4 rocm@5`'.
+    name: str
+        Name of complete image.
+    dry_run: bool
+        Dry run build system.
+    leave_tags: bool
+        Do not clean up intermediate build tags (only applies to dockerish backends).
+    verbose: bool
+        Print helpful debug/runtime information.
+    clean: bool
+        Remove cached files in the build directory.
+    """
 
     imageRepo = ImageRepo()
     for p in config.get("velocity:image_path").strip(":").split(":"):
         imageRepo.import_from_dir(p)
 
     # get recipe
-    recipe = imageRepo.create_build_recipe(specs.split())[0]
+    recipe = imageRepo.create_build_recipe(targets.split())[0]
 
     # print build specs
     header_print([TextBlock("Build Order:")])
