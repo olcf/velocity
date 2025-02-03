@@ -1,6 +1,8 @@
 on:
   release:
     types:
+      - created
+      - edited
       - published
 
 name: build
