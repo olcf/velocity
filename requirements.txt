@@ -1,0 +1,5 @@
+colorama~=0.4.6
+loguru~=0.7.3
+typing_extensions~=4.12.2
+PyYAML~=6.0.2
+networkx~=3.4.2
