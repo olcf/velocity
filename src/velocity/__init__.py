@@ -121,7 +121,7 @@ def build(
 
     # prep builder
     builder = ImageBuilder(
-        recipe, build_name=name, dry_run=dry_run, remove_tags=leave_tags, verbose=verbose, clean_build_dir=clean
+        recipe, build_name=name, dry_run=dry_run, remove_tags=not leave_tags, verbose=verbose, clean_build_dir=clean
     )
 
     # build
