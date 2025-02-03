@@ -1,11 +1,11 @@
-on:
-  release:
-    types:
-      - created
-      - edited
-      - published
-
 name: build
+
+on:
+  workflow_run:
+    workflows:
+      - release
+    types:
+      - completed
 
 permissions:
   contents: read
