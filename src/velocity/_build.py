@@ -105,13 +105,19 @@ class ImageBuilder(metaclass=OurMeta):
         self.build_dir = Path(config.get("velocity:build_dir"))
         self.build_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
 
-        self.variables: dict[str, str] = dict()
-        for i in self.build_units:
-            self.variables["__{}__version__".format(i.name)] = i.version.__str__()
-            self.variables["__{}__version_major__".format(i.name)] = i.version.major.__str__()
-            self.variables["__{}__version_minor__".format(i.name)] = i.version.minor.__str__()
-            self.variables["__{}__version_patch__".format(i.name)] = i.version.patch.__str__()
-            self.variables["__{}__version_suffix__".format(i.name)] = i.version.suffix.__str__()
+        self.variables: dict[str, str] = {
+            "__backend__": self.backend_engine.name,
+            "__backend_executable__": self.backend_engine.executable,
+            "__threads__": str(int(cpu_count() * 0.75) if int(cpu_count() * 0.75) < 16 else 16),
+            "__arch__": arch(),
+            "__timestamp__": str(datetime.now()),
+        }
+        for u in self.build_units:
+            self.variables["__{}__version__".format(u.name)] = str(u.version)
+            self.variables["__{}__version_major__".format(u.name)] = str(u.version.major)
+            self.variables["__{}__version_minor__".format(u.name)] = str(u.version.minor)
+            self.variables["__{}__version_patch__".format(u.name)] = str(u.version.patch)
+            self.variables["__{}__version_suffix__".format(u.name)] = str(u.version.suffix)
 
     def build(self) -> None:
         """Launch image builds."""
@@ -211,16 +217,15 @@ class ImageBuilder(metaclass=OurMeta):
             )
 
         # get and update script variables
-        script_variables = dict()
-        script_variables.update({"__name__": unit.name})
-        script_variables.update({"__version__": str(unit.version)})
-        script_variables.update({"__version_major__": str(unit.version.major)})
-        script_variables.update({"__version_minor__": str(unit.version.minor)})
-        script_variables.update({"__version_patch__": str(unit.version.patch)})
-        script_variables.update({"__version_suffix__": str(unit.version.suffix)})
-        script_variables.update({"__timestamp__": str(datetime.now())})
-        script_variables.update({"__threads__": str(int(cpu_count() * 0.75) if int(cpu_count() * 0.75) < 16 else 16)})
-        script_variables.update({"__arch__": arch()})
+        script_variables = {
+            "__image_id__": unit.id,
+            "__name__": unit.name,
+            "__version__": str(unit.version),
+            "__version_major__": str(unit.version.major),
+            "__version_minor__": str(unit.version.minor),
+            "__version_patch__": str(unit.version.patch),
+            "__version_suffix__": str(unit.version.suffix),
+        }
         if src_image is not None:
             script_variables.update({"__base__": src_image})
         script_variables.update(self.variables)
@@ -233,6 +238,15 @@ class ImageBuilder(metaclass=OurMeta):
                 if self.verbose:
                     indent_print([TextBlock(line, fore=Fore.BLUE, style=Style.DIM)])
                 out_file.writelines(line + "\n")
+
+        # write out variables
+        variables_file = build_sub_dir.joinpath("variables")
+        with open(variables_file, "w") as fo:
+            for k, v in script_variables.items():
+                if v == "None":
+                    fo.write("export {}=''".format(k) + "\n")
+                else:
+                    fo.write("export {}={}".format(k, v) + "\n")
 
         # run prolog & build
         build_cmd = self.backend_engine.generate_build_cmd(
@@ -248,12 +262,14 @@ class ImageBuilder(metaclass=OurMeta):
                     TextBlock(": RUNNING PROLOG ... && BUILDING ..."),
                 ]
             )
-            build_contents.append(unit.prolog.strip("\n"))
-            build_contents.append(build_cmd)
-
+            build_contents.extend(["### VARIABLES ###", f"source {variables_file.absolute()}"])
+            build_contents.append("### PROLOG ###")
+            build_contents.extend(unit.prolog.strip("\n").split("\n"))
         else:
             header_print([TextBlock(unit.id, fore=Fore.RED, style=Style.BRIGHT), TextBlock(": BUILDING ...")])
-            build_contents.append(build_cmd)
+
+        build_contents.append("### BUILD ###")
+        build_contents.extend(build_cmd)
 
         with open(build_file_path, "w") as build_file:
             for line in build_contents:

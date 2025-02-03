@@ -1,20 +1,23 @@
 """Velocity backends."""
 
-from re import Match as re_Match, sub as re_sub, match as re_match
-from loguru import logger
-from shutil import which as shutil_which
-from pathlib import Path
 from abc import abstractmethod
-from ._exceptions import (
-    RepeatedSection,
-    LineOutsideOfSection,
-    TemplateSyntaxError,
-    BackendNotSupported,
+from pathlib import Path
+from re import Match as re_Match, match as re_match, sub as re_sub
+from shutil import which as shutil_which
+from subprocess import run as subprocess_run
+
+from loguru import logger
+
+from velocity._exceptions import (
     BackendNotAvailable,
+    BackendNotSupported,
+    LineOutsideOfSection,
+    RepeatedSection,
+    TemplateSyntaxError,
 )
-from ._config import config
-from ._graph import Image
-from ._tools import OurABCMeta, trace_function
+from velocity._config import config
+from velocity._graph import Image
+from velocity._tools import OurABCMeta, trace_function
 
 
 @trace_function
@@ -43,6 +46,11 @@ class Backend(metaclass=OurABCMeta):
         "@entry",
         "@post",
     ]
+
+    existing_builds_cache: dict = dict()
+
+    name: str = "backend"
+    executable: str = "true"
 
     @classmethod
     @trace_function
@@ -89,6 +97,7 @@ class Backend(metaclass=OurABCMeta):
     @trace_function
     def _filter_content(cls, image: Image, text: str) -> str:
         """Filter conditionals and white space from a template line."""
+
         # handle conditionals
         res: re_Match[str] = re_match(r".*(\?\?([\S ]*)\|>(.*)\?\?).*", text)
         if res is not None:
@@ -108,6 +117,7 @@ class Backend(metaclass=OurABCMeta):
     @trace_function
     def _load_template(cls, image: Image, variables: dict[str, str]) -> list[str]:
         """Load a template and parse it."""
+
         template: list[str] = list()
         with open(
             Path(image.path).joinpath("templates", "{}.vtmp".format(image.template)),
@@ -120,12 +130,9 @@ class Backend(metaclass=OurABCMeta):
                     template.append(fcon)
         return template
 
-    def __init__(self, name: str, executable: str) -> None:
-        self.name: str = name
-        self.executable: str = executable
-
     def generate_script(self, image: Image, variables: dict[str, str]) -> list[str]:
-        """Generate a build script e.g. .dockerfile/.def"""
+        """Generate a build script."""
+
         logger.debug("Variables: {}".format(variables))
         template: list[str] = self._load_template(image, variables)
         sections: dict[str, list[str]] = self._get_sections(template)
@@ -179,6 +186,7 @@ class Backend(metaclass=OurABCMeta):
 
     def is_available(self) -> bool:
         """Check if the current system has the requested backend."""
+
         if shutil_which(self.executable) is None:
             return False
         return True
@@ -214,13 +222,14 @@ class Backend(metaclass=OurABCMeta):
     @classmethod
     def _literal_section(cls, contents: list[str]) -> list[str]:
         """Handle literal sections."""
+
         ret: list = [""]
         for ln in contents:
             ret.append(ln.lstrip("|"))
         return ret
 
     @abstractmethod
-    def generate_build_cmd(self, src: str, dest: str, args: list[str] = None) -> str:
+    def generate_build_cmd(self, src: str, dest: str, args: list[str] = None) -> list[str]:
         """Generate CLI command to build."""
 
     @abstractmethod
@@ -243,8 +252,8 @@ class Backend(metaclass=OurABCMeta):
 class Apptainer(Backend):
     """Apptainer backend."""
 
-    def __init__(self):
-        super().__init__(name="apptainer", executable="apptainer")
+    name = "apptainer"
+    executable = "apptainer"
 
     def _from(self, contents: list[str]) -> list[str]:
         ret: list[str] = list()
@@ -270,7 +279,7 @@ class Apptainer(Backend):
                     ret.append("From: {}".format(res["main"]))
                 case _:
                     raise TemplateSyntaxError("Unknown bootstrap type '{}' in @from!".format(res["bootstrap"]))
-        else:   # if the bootstrap type was not specified
+        else:  # if the bootstrap type was not specified
             if re_match(r"^.*\.sif$", res["main"]):
                 logger.debug("Template @from source identified as 'localimage'")
                 ret.append("Bootstrap: localimage")
@@ -335,7 +344,7 @@ class Apptainer(Backend):
     def _entry(self, contents: list[str]) -> list[str]:
         return ["", "%runscript", "{}".format(contents[0])]
 
-    def generate_build_cmd(self, src: str, dest: str, args: list = None) -> str:
+    def generate_build_cmd(self, src: str, dest: str, args: list = None) -> list[str]:
         cmd: list[str] = ["{} build".format(self.executable)]
         # arguments
         if args is not None and len(args) > 0:
@@ -344,7 +353,7 @@ class Apptainer(Backend):
         cmd.append("{}".format(dest))
         # script
         cmd.append("{}".format(src))
-        return " ".join(_ for _ in cmd) + ";"
+        return [" ".join(_ for _ in cmd) + ";"]
 
     def format_image_name(self, path: Path, tag: str) -> str:
         return "{}{}".format(Path.joinpath(path, tag), ".sif" if ".sif" not in tag else "")
@@ -353,9 +362,12 @@ class Apptainer(Backend):
         return "echo"
 
     def build_exists(self, name: str) -> bool:
-        if Path(name).is_file():
-            return True
-        return False
+        if name not in self.existing_builds_cache:
+            if Path(name).is_file():
+                self.existing_builds_cache[name] = True
+            else:
+                self.existing_builds_cache[name] = False
+        return self.existing_builds_cache[name]
 
     def generate_final_image_cmd(self, src: str, dest: str) -> str:
         return "cp {} {}".format(src, dest)
@@ -364,8 +376,8 @@ class Apptainer(Backend):
 class Docker(Backend):
     """Docker backend."""
 
-    def __init__(self):
-        super().__init__(name="docker", executable="docker")
+    name = "docker"
+    executable = "docker"
 
     def _from(self, contents: list[str]) -> list[str]:
         return [f"FROM {contents[0]}"]
@@ -416,7 +428,7 @@ class Docker(Backend):
                 ln += "    "
             ln += alt_cmd
             # add '&& \\' to all but the last line
-            if cmd != contents[-1] and cmd[-1] != '\\': # ignore line that end in an escape
+            if cmd != contents[-1] and cmd[-1] != "\\":  # ignore line that end in an escape
                 ln += " && \\"
             ret.append(ln)
         return ret
@@ -433,7 +445,7 @@ class Docker(Backend):
             else:
                 # indent following lines
                 ln += "    "
-            ln += f"{parts[0]}=\"{env.lstrip(parts[0]).strip(' ')}\""
+            ln += f'{parts[0]}="{env.lstrip(parts[0]).strip(" ")}"'
             # add '\\' to all but the last line
             if env != contents[-1]:
                 ln += " \\"
@@ -454,7 +466,7 @@ class Docker(Backend):
             else:
                 # indent following lines
                 ln += "    "
-            ln += f"{parts[0]}=\"{label.lstrip(parts[0]).strip(' ')}\""
+            ln += f'{parts[0]}="{label.lstrip(parts[0]).strip(" ")}"'
             # add '\\' to all but the last line
             if label != contents[-1]:
                 ln += " \\"
@@ -464,7 +476,7 @@ class Docker(Backend):
     def _entry(self, contents: list[str]) -> list[str]:
         return ["", "ENTRYPOINT {}".format(contents[0].split())]
 
-    def generate_build_cmd(self, src: str, dest: str, args: list = None) -> str:
+    def generate_build_cmd(self, src: str, dest: str, args: list = None) -> list[str]:
         cmd: list[str] = ["{} build".format(self.executable)]
         # arguments
         if args is not None and len(args) > 0:
@@ -475,7 +487,7 @@ class Docker(Backend):
         cmd.append("-t {}".format(dest))
         # build dir
         cmd.append(".")
-        return " ".join(_ for _ in cmd) + ";"
+        return [" ".join(_ for _ in cmd) + ";"]
 
     def format_image_name(self, path: Path, tag: str) -> str:
         return "{}{}{}".format("localhost/" if "/" not in tag else "", tag, ":latest" if ":" not in tag else "")
@@ -484,39 +496,92 @@ class Docker(Backend):
         return "{} rmi {}".format(self.executable, name)
 
     def build_exists(self, name: str) -> bool:
-        return False
+        if name not in self.existing_builds_cache:
+            res = subprocess_run(
+                f"{self.executable} image ls -n" + " | awk '{print $1\":\"$2}'" + f" | grep {name}",
+                shell=True,
+                capture_output=True,
+            )
+            if res.returncode == 0:
+                self.existing_builds_cache[name] = True
+            else:
+                self.existing_builds_cache[name] = False
+        return self.existing_builds_cache[name]
 
     def generate_final_image_cmd(self, src: str, dest: str) -> str:
         return "{} tag {} {}".format(self.executable, src, dest)
 
 
+class OpenShift(Docker):
+    """Openshift-CI backend. Inherit from Docker because openshift uses docker as the container runtime."""
+
+    name = "openshift"
+    executable = "oc"
+
+    def generate_build_cmd(self, src: str, dest: str, args: list = None) -> list[str]:
+        arguments = " " + " ".join(_ for _ in args) if args is not None else ""
+        cmd: list[str] = [
+            "cp {} {};".format(src, re_sub(r"(script$)", "Dockerfile", src)),  # copy script to Dockerfile
+            "if ! {} get buildconfigs {}; then".format(self.executable, dest),  # create new build config if none exist
+            "    {} new-build {} --name={} --to={}:latest;".format(
+                self.executable, re_sub(r"(/script$)", "", src), dest, dest
+            ),
+            "fi;",
+            "{} start-build {} --from-dir={} --follow{};".format(  # run build
+                self.executable, dest, re_sub(r"(/script$)", "", src), arguments
+            ),
+            "while ! {} get imagetags {}:latest; do".format(self.executable, dest),  # wait for image to be pushed
+            "    sleep 10;",
+            "done;",
+        ]
+        return cmd
+
+    def format_image_name(self, path: Path, tag: str) -> str:
+        return "v-" + tag
+
+    def clean_up_old_image_tag(self, name: str) -> str:
+        return "{} delete buildconfigs {}; {} delete imagestream {};".format(
+            self.executable, name, self.executable, name
+        )
+
+    def build_exists(self, name: str) -> bool:
+        if name not in self.existing_builds_cache:
+            res = subprocess_run(
+                "{} get imagetags {}:latest;".format(self.executable, name), shell=True, capture_output=True
+            )
+            if res.returncode == 0:
+                self.existing_builds_cache[name] = True
+            else:
+                self.existing_builds_cache[name] = False
+        return self.existing_builds_cache[name]
+
+    def generate_final_image_cmd(self, src: str, dest: str) -> str:
+        return "{} tag {}:latest {}:latest;".format(self.executable, src, dest)
+
+
 class Podman(Docker):
     """Podman backend. Inherit from Docker because for our purposes they are the same."""
 
-    def __init__(self):
-        super().__init__()
-        # override name and executable
-        self.name = "podman"
-        self.executable = "podman"
+    name = "podman"
+    executable = "podman"
 
 
 class Singularity(Apptainer):
     """Singularity backend. Inherit from Apptainer because that is what Singularity really is."""
 
-    def __init__(self):
-        super().__init__()
-        # override name and executable
-        self.name = "singularity"
-        self.executable = "singularity"
+    name = "singularity"
+    executable = "singularity"
 
 
 @trace_function
 def get_backend() -> Backend:
-    backend = config.get("velocity:backend")
+    backend = config.get("velocity:backend").lower()
     if backend == "apptainer":
         b = Apptainer()
     elif backend == "docker":
         b = Docker()
+    elif backend == "openshift":
+        b = OpenShift()
     elif backend == "podman":
         b = Podman()
     elif backend == "singularity":

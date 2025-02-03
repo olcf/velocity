@@ -28,12 +28,10 @@ def trace_function(_function):
 
         # construct trace message
         q_name_str: str = "function '{}:{} {}'".format(
-            _function.__module__,
-            _function.__code__.co_firstlineno,
-            _function.__qualname__
+            _function.__module__, _function.__code__.co_firstlineno, _function.__qualname__
         )
         call_number_str: str = "call #{} ".format(wrapper.call_count)
-        argument_names: tuple[str] = _function.__code__.co_varnames[:_function.__code__.co_argcount]
+        argument_names: tuple[str] = _function.__code__.co_varnames[: _function.__code__.co_argcount]
         argument_str: str = ""
         for a in range(len(args)):
             if argument_names[a] == "self":
@@ -44,7 +42,7 @@ def trace_function(_function):
             if a in kwargs:
                 argument_str += "{}: {} = '{}', ".format(a, type(kwargs[a]).__name__, kwargs[a])
         argument_str = "with ({})".format(argument_str)
-        argument_str = argument_str.replace("\x1b", "\\x1b")    # neutralize color escape sequences
+        argument_str = argument_str.replace("\x1b", "\\x1b")  # neutralize color escape sequences
 
         # log trace
         logger.opt(depth=1).trace("{} {} {}".format(q_name_str, call_number_str, argument_str))
@@ -62,6 +60,7 @@ def trace_function(_function):
 class OurMeta(type):
     """Metaclass to wrap class methods with @trace_function. We do not trace builtin functions
     in the form __\w+__ except for __init__."""
+
     def __new__(cls, *args, **kwargs):
         for name, value in args[2].items():
             if isfunction(value) and (not builtin_regex.fullmatch(name) or name == "__init__"):
@@ -72,6 +71,7 @@ class OurMeta(type):
 class OurABCMeta(ABCMeta):
     """Metaclass to wrap class methods with @trace_function and inherit from ABCMeta. We do not trace builtin
     functions in the form __\w+__ except for __init__."""
+
     def __new__(cls, *args, **kwargs):
         for name, value in args[2].items():
             if isfunction(value) and (not builtin_regex.fullmatch(name) or name == "__init__"):
