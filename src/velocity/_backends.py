@@ -359,7 +359,7 @@ class Apptainer(Backend):
         return "{}{}".format(Path.joinpath(path, tag), ".sif" if ".sif" not in tag else "")
 
     def clean_up_old_image_tag(self, name: str) -> str:
-        return "echo"
+        return "/usr/bin/env true"
 
     def build_exists(self, name: str) -> bool:
         if name not in self.existing_builds_cache:
