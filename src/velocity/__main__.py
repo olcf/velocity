@@ -109,8 +109,8 @@ if args.distro is not None:
     config.set("velocity:distro", args.distro)
 
 # setup logging and log startup
-logger.enable("velocity")
 logger.configure(handlers=[{"sink": sys.stdout, "level": config.get("velocity:logging:level")}])
+logger.enable("velocity")
 logger.debug("Starting velocity.")
 logger.debug(config.get(""))
 

@@ -1,5 +1,6 @@
 from colorama import Fore, Style
 from loguru import logger; logger.disable("velocity")  # noqa: E702 # disable logging at the module level
+from sys import stdout
 
 from velocity._config import config  # noqa: E402
 from velocity._graph import ImageRepo  # noqa: E402
@@ -127,6 +128,11 @@ def build(
     # build
     builder.build()
 
+
+# set up logging
+logger.configure(handlers=[{"sink": stdout, "level": config.get("velocity:logging:level")}])
+logger.enable("velocity")
+logger.debug(config.get(""))
 
 # visible attributes
 __all__ = ["get_system", "set_system", "get_backend", "set_backend", "get_distro", "set_distro", "build"]
