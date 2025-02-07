@@ -1,6 +1,7 @@
 """Velocity backends."""
 
 from abc import abstractmethod
+from os import getenv
 from pathlib import Path
 from re import Match as re_Match, match as re_match, sub as re_sub
 from shutil import which as shutil_which
@@ -130,6 +131,12 @@ class Backend(metaclass=OurABCMeta):
                     template.append(fcon)
         return template
 
+    def __init__(self) -> None:
+        super().__init__()
+
+        # load configuration
+        self.load_configuration()
+
     def generate_script(self, image: Image, variables: dict[str, str]) -> list[str]:
         """Generate a build script."""
 
@@ -237,7 +244,7 @@ class Backend(metaclass=OurABCMeta):
         """Create a name for the image build."""
 
     @abstractmethod
-    def clean_up_old_image_tag(self, name: str) -> str:
+    def clean_up_old_image(self, name: str) -> str:
         """Generate CLI command to clean up an old image."""
 
     @abstractmethod
@@ -247,6 +254,14 @@ class Backend(metaclass=OurABCMeta):
     @abstractmethod
     def generate_final_image_cmd(self, src: str, dest: str) -> str:
         """Generate command to move the last image in the build to its final destination."""
+
+    @abstractmethod
+    def curate_variables(self, variables: dict[str, str | bool]) -> None:
+        """Curate the template variables with edits and additions for a specific backend."""
+
+    @abstractmethod
+    def load_configuration(self) -> None:
+        """Load environment configuration for a specific backend."""
 
 
 class Apptainer(Backend):
@@ -358,7 +373,7 @@ class Apptainer(Backend):
     def format_image_name(self, path: Path, tag: str) -> str:
         return "{}{}".format(Path.joinpath(path, tag), ".sif" if ".sif" not in tag else "")
 
-    def clean_up_old_image_tag(self, name: str) -> str:
+    def clean_up_old_image(self, name: str) -> str:
         return "/usr/bin/env true"
 
     def build_exists(self, name: str) -> bool:
@@ -371,6 +386,12 @@ class Apptainer(Backend):
 
     def generate_final_image_cmd(self, src: str, dest: str) -> str:
         return "cp {} {}".format(src, dest)
+
+    def curate_variables(self, variables: dict[str, str | bool]) -> None:
+        pass
+
+    def load_configuration(self) -> None:
+        pass
 
 
 class Docker(Backend):
@@ -492,7 +513,7 @@ class Docker(Backend):
     def format_image_name(self, path: Path, tag: str) -> str:
         return "{}{}{}".format("localhost/" if "/" not in tag else "", tag, ":latest" if ":" not in tag else "")
 
-    def clean_up_old_image_tag(self, name: str) -> str:
+    def clean_up_old_image(self, name: str) -> str:
         return "{} rmi {}".format(self.executable, name)
 
     def build_exists(self, name: str) -> bool:
@@ -511,6 +532,12 @@ class Docker(Backend):
     def generate_final_image_cmd(self, src: str, dest: str) -> str:
         return "{} tag {} {}".format(self.executable, src, dest)
 
+    def curate_variables(self, variables: dict[str, str | bool]) -> None:
+        pass
+
+    def load_configuration(self) -> None:
+        pass
+
 
 class OpenShift(Docker):
     """Openshift-CI backend. Inherit from Docker because openshift uses docker as the container runtime."""
@@ -519,36 +546,51 @@ class OpenShift(Docker):
     executable = "oc"
 
     def generate_build_cmd(self, src: str, dest: str, args: list = None) -> list[str]:
-        arguments = " " + " ".join(_ for _ in args) if args is not None else ""
+        build_name = dest[: dest.find(":")]
+        arguments = (" " + " ".join(_ for _ in args)) if args is not None and len(args) > 0 else ""
         cmd: list[str] = [
             "cp {} {};".format(src, re_sub(r"(script$)", "Dockerfile", src)),  # copy script to Dockerfile
-            "if ! {} get buildconfigs {}; then".format(self.executable, dest),  # create new build config if none exist
-            "    {} new-build {} --name={} --to={}:latest;".format(
-                self.executable, re_sub(r"(/script$)", "", src), dest, dest
+            "if ! {} get buildconfigs {}; then".format(
+                self.executable, build_name
+            ),  # create new build config if none exist
+            "    {} new-build {} --name={} --to={} --allow-missing-imagestream-tags=true;".format(
+                self.executable, re_sub(r"(/script$)", "", src), build_name, dest
             ),
             "fi;",
-            "{} start-build {} --from-dir={} --follow{};".format(  # run build
-                self.executable, dest, re_sub(r"(/script$)", "", src), arguments
+            '{} patch buildconfig/{} --patch \'{{"spec":{{"resources":{{"limits":{{"cpu":"{}","memory":"{}"}}}}}}}}\';'.format(
+                self.executable, build_name, config.get("openshift:cpu:limit"), config.get("openshift:memory:limit")
             ),
-            "while ! {} get imagetags {}:latest; do".format(self.executable, dest),  # wait for image to be pushed
-            "    sleep 10;",
+            "{} start-build {} --from-dir={}{};".format(  # run build
+                self.executable, build_name, re_sub(r"(/script$)", "", src), arguments
+            ),
+            "while : ; do",  # wait for image to be pushed
+            "    status=$({} describe build {} 2>/dev/null | awk '$1 == \"Status:\" {{print $2}}');".format(
+                self.executable, build_name
+            ),
+            '    if echo "$status" | grep -iP "complete" > /dev/null; then',
+            '        echo "Build complete."; exit 0;',
+            '    elif echo "$status" | grep -iP "new|pending|running" > /dev/null; then',
+            '        echo "Waiting for build to complete ($(date)) ..."; sleep 30;',
+            "    else",
+            "        echo \"Build failed with state '${status}'!\" >&2; exit 1;",
+            "    fi;",
             "done;",
         ]
         return cmd
 
     def format_image_name(self, path: Path, tag: str) -> str:
-        return "v-" + tag
+        if ":" in tag:  # if the name already has a tag assume this is the name provided by the user and do not change
+            return tag
+        return "v-" + tag + ":latest"  # append a "v-" to avoid failures due to the name starting with a number
 
-    def clean_up_old_image_tag(self, name: str) -> str:
+    def clean_up_old_image(self, name: str) -> str:
         return "{} delete buildconfigs {}; {} delete imagestream {};".format(
-            self.executable, name, self.executable, name
+            self.executable, name[: name.find(":")], self.executable, name[: name.find(":")]
         )
 
     def build_exists(self, name: str) -> bool:
         if name not in self.existing_builds_cache:
-            res = subprocess_run(
-                "{} get imagetags {}:latest;".format(self.executable, name), shell=True, capture_output=True
-            )
+            res = subprocess_run("{} get imagetags {};".format(self.executable, name), shell=True, capture_output=True)
             if res.returncode == 0:
                 self.existing_builds_cache[name] = True
             else:
@@ -556,7 +598,30 @@ class OpenShift(Docker):
         return self.existing_builds_cache[name]
 
     def generate_final_image_cmd(self, src: str, dest: str) -> str:
-        return "{} tag {}:latest {}:latest;".format(self.executable, src, dest)
+        return "{} tag {} {};".format(self.executable, src, dest)
+
+    def curate_variables(self, variables: dict[str, str | bool]) -> None:
+        # add openshift variables
+        variables["__openshift_cpu_limit__"] = config.get("openshift:cpu:limit")
+        variables["__openshift_memory_limit__"] = config.get("openshift:memory:limit")
+
+        # update "__threads__" to match "openshift:cpu:limit"
+        openshift_nproc = int(int(re_sub(r"[^0-9]", "", config.get("openshift:cpu:limit"))) / 1000)
+        variables["__threads__"] = str(min(int(variables["__threads__"]), max(1, openshift_nproc)))
+
+    def load_configuration(self) -> None:
+        # cpu limit
+        cpu_limit = getenv("VELOCITY_OPENSHIFT_CPU_LIMIT")
+        if cpu_limit is not None:
+            config.set("openshift:cpu:limit", cpu_limit)
+        elif config.get("openshift:cpu:limit") is None:
+            config.set("openshift:cpu:limit", "1000m")
+        # memory limit
+        memory_limit = getenv("VELOCITY_OPENSHIFT_MEMORY_LIMIT")
+        if memory_limit is not None:
+            config.set("openshift:memory:limit", memory_limit)
+        elif config.get("openshift:memory:limit") is None:
+            config.set("openshift:memory:limit", "2Gi")
 
 
 class Podman(Docker):

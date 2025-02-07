@@ -1,16 +1,17 @@
 """Run velocity as a script."""
 
 import argparse
-import sys
-from loguru import logger
-from importlib.metadata import version
 from colorama import Fore, Style
-from ._graph import ImageRepo, Image
-from ._build import ImageBuilder
-from ._print import header_print, indent_print, TextBlock, bare_print
+from importlib.metadata import version
+from loguru import logger
 from re import fullmatch as re_fullmatch
-from ._config import config
-from._exceptions import InvalidCLIArgumentFormat
+import sys
+
+from velocity._build import ImageBuilder
+from velocity._config import config
+from velocity._graph import Image, ImageRepo
+from velocity._print import TextBlock, bare_print, header_print, indent_print
+from velocity._exceptions import InvalidCLIArgumentFormat
 
 ############################################################
 # Parse Args
@@ -42,14 +43,29 @@ build_parser.add_argument("-d", "--dry-run", action="store_true", help="dry run 
 build_parser.add_argument("targets", type=str, nargs="+", help="build targets")
 build_parser.add_argument("-n", "--name", action="store", help="name of complete image")
 build_parser.add_argument(
-    "-l", "--leave-tags", action="store_true", help="do not clean up intermediate build tags (only applies to dockerish backends)"
+    "-l",
+    "--leave-tags",
+    action="store_true",
+    help="do not clean up intermediate build tags (only applies to dockerish backends)",
 )
 build_parser.add_argument("-v", "--verbose", action="store_true", help="print helpful debug/runtime information")
 build_parser.add_argument("-c", "--clean", action="store_true", help="run clean build (delete cached builds)")
-build_parser.add_argument("-A", "--argument", action="append", dest="arguments", default=list(),
-                          help='define an argument (e.g -A "value: --disable-cache; when: backend=apptainer")')
-build_parser.add_argument("-V", "--variable", action="append", dest="variables", default=list(),
-                          help='define a variable (e.g -V "name: example; value: 1234")')
+build_parser.add_argument(
+    "-A",
+    "--argument",
+    action="append",
+    dest="arguments",
+    default=list(),
+    help='define an argument (e.g -A "value: --disable-cache; when: backend=apptainer")',
+)
+build_parser.add_argument(
+    "-V",
+    "--variable",
+    action="append",
+    dest="variables",
+    default=list(),
+    help='define a variable (e.g -V "name: example; value: 1234")',
+)
 
 # create avail_parser
 avail_parser = sub_parsers.add_parser("avail", help="lookup available images")
@@ -73,7 +89,12 @@ if "argument" in args:
                 constructed_arg[parts["key"]] = parts["value"]
             prev_arguments: list | None = config.get("constraints:arguments", warn_on_miss=False)
             if prev_arguments is None:
-                config.set("constraints:arguments", [constructed_arg, ])
+                config.set(
+                    "constraints:arguments",
+                    [
+                        constructed_arg,
+                    ],
+                )
             else:
                 prev_arguments.append(constructed_arg)
                 config.set("constraints:arguments", prev_arguments)
@@ -89,7 +110,12 @@ if "variables" in args:
                 constructed_var[parts["key"]] = parts["value"]
             prev_variables: list | None = config.get("constraints:variables", warn_on_miss=False)
             if prev_variables is None:
-                config.set("constraints:variables", [constructed_var, ])
+                config.set(
+                    "constraints:variables",
+                    [
+                        constructed_var,
+                    ],
+                )
             else:
                 prev_variables.append(constructed_var)
                 config.set("constraints:variables", prev_variables)
@@ -141,7 +167,7 @@ if args.subcommand == "build":
         dry_run=args.dry_run,
         remove_tags=not args.leave_tags,
         verbose=args.verbose,
-        clean_build_dir=args.clean
+        clean_build_dir=args.clean,
     )
 
     # build
