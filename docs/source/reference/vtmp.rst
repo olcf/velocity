@@ -56,16 +56,25 @@ VTMP files are split up into a number of sections.
 
 Variables
 #########
+
 The first thing that is done to a VTMP file is the substitution of any variables found in the script. Variables are indicated
 by ``{{ <variable> }}``. In Velocity variables can be defined by the user in the `specs.yaml` file, but Velocity also
 provides a set of build time variables.
 
+.. important::
+
+    User defined variables are applied after the system defaults are generated. This allows you to manually override the
+    values provided by velocity.
+
 .. code-block:: text
 
+    __arch__
     __backend__
+    __backend_executable__
     __distro__
     __base__        >>> previous image to build on
     __name__        >>> current image name e.g. cuda
+    __image_id__    >>> short hash of the current image
     __system__
     __version__     >>> image "version" e.g. 11.7.1
     __version_major__
@@ -73,6 +82,7 @@ provides a set of build time variables.
     __version_patch__
     __version_suffix__
     __timestamp__
+    __threads__
     >>> the versions of all images in a build are also available in the following format
     __<name>__version__
     __<name>__version_major__

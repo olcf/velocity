@@ -159,7 +159,7 @@ class ImageBuilder(metaclass=OurMeta):
 
         if not self.dry_run and self.remove_tags:
             for bn in build_names:
-                run(self.backend_engine.clean_up_old_image_tag(bn))
+                run(self.backend_engine.clean_up_old_image(bn))
 
         # go back to the starting dir
         chdir(pwd)
@@ -229,6 +229,9 @@ class ImageBuilder(metaclass=OurMeta):
         if src_image is not None:
             script_variables.update({"__base__": src_image})
         script_variables.update(self.variables)
+        # curate velocity variables
+        self.backend_engine.curate_variables(script_variables)
+        # apply user variables
         script_variables.update(unit.variables)
 
         script = self.backend_engine.generate_script(unit, script_variables)
@@ -250,7 +253,7 @@ class ImageBuilder(metaclass=OurMeta):
 
         # run prolog & build
         build_cmd = self.backend_engine.generate_build_cmd(
-            str(Path.joinpath(build_sub_dir, "script")), name, unit.arguments
+            str(Path.joinpath(build_sub_dir, "script")), name, list(unit.arguments)
         )
         build_file_path = Path.joinpath(build_sub_dir, "build")
         build_contents = ["#!/usr/bin/env bash"]

@@ -49,6 +49,8 @@ This variable specifies a scratch space for Velocity to preform builds in.
 
 This variable specifies where to look for the configuration file.
 
+.. _velocity_config_file:
+
 Configuration File
 ##################
 The configuration file is the lowest level of configuration. By default Velocity looks for ``config.yaml`` in
@@ -60,7 +62,7 @@ The configuration file is the lowest level of configuration. By default Velocity
       system: frontier
       backend: apptainer
       distro: ubuntu
-      debug: INFO   # set the debug level
+      logging:level: INFO   # set the debug level
       image_path:   # a list of : seperated paths
       build_dir:    # path to a scratch space
 

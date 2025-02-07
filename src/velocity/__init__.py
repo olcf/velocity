@@ -1,6 +1,8 @@
 from colorama import Fore, Style
-from loguru import logger; logger.disable("velocity")  # noqa: E702 # disable logging at the module level
+from loguru import logger
 from sys import stdout
+
+logger.disable("velocity")  # noqa: E702 # disable logging at the module level
 
 from velocity._config import config  # noqa: E402
 from velocity._graph import ImageRepo  # noqa: E402

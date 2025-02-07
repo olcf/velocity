@@ -1,13 +1,15 @@
 """Config organizer. Provides default config object for velocity."""
 
+from getpass import getuser
 from loguru import logger
+from os import getenv
 from platform import processor as arch
 from pathlib import Path
-from os import getenv
-from getpass import getuser
 from yaml import safe_load as yaml_safe_load
-from ._exceptions import InvalidConfigIdentifier
-from ._tools import OurMeta
+
+from velocity._exceptions import InvalidConfigIdentifier
+from velocity._tools import OurMeta
+
 
 class Config(metaclass=OurMeta):
     """Configuration class. Stores configuration as a dictionary."""
