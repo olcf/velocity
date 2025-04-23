@@ -25,13 +25,19 @@ from velocity._tools import OurABCMeta, trace_function
 def _substitute(text: str, variables: dict[str, str], regex: str) -> str:
     """Substitute a variables in a string by a regex."""
 
-    def _replace(m: re_Match):
+    def _replace(m: re_Match) -> str:
         try:
             return str(variables[m.group(1)])
         except KeyError:
             logger.warning("The variable '{}' is undefined. Setting value to ''.".format(m.group(1)))
+            return ''
 
-    return re_sub(regex, _replace, text)
+    substitute: str = re_sub(regex, _replace, text)
+    while substitute != text:
+        text = substitute
+        substitute = re_sub(regex, _replace, text)
+
+    return substitute
 
 
 class Backend(metaclass=OurABCMeta):
