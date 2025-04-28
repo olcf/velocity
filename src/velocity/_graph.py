@@ -261,8 +261,8 @@ class Image(metaclass=OurMeta):
                     self.dependencies.add(spec)
                     return True
             elif _type == "variable":
-                parts = spec.split("=")
-                self.variables[parts[0]] = parts[1]
+                parts = re_fullmatch(r"^(?P<key>[^=]+)=(?P<value>.*)$", spec).groupdict()
+                self.variables[parts["key"]] = parts["value"]
             elif _type == "argument":
                 self.arguments.add(spec)
             elif _type == "template":
@@ -341,8 +341,8 @@ class Target(metaclass=OurMeta):
     """Build targets."""
 
     def __init__(self, node: Image, op: DepOp):
-        self.node = node
-        self.op = op
+        self.node: Image = node
+        self.op: DepOp = op
 
     def __str__(self):
         return "Target: {} -> {}".format(self.op, self.node)
@@ -582,130 +582,135 @@ class ImageRepo(metaclass=OurMeta):
 
             # process metadata
             with open(name.joinpath("specs.yaml"), "r") as fi:
-                specs_file = yaml_safe_load(fi)
-                # add versions
-                for version in specs_file["versions"]:
-                    if isinstance(version["spec"], list):
-                        specs = version["spec"]
-                    else:
-                        specs = [
-                            version["spec"],
-                        ]
-                    for spec in specs:
-                        image = Image(
-                            name.name,
-                            spec,
-                            config.get("velocity:system"),
-                            config.get("velocity:backend"),
-                            config.get("velocity:distro"),
-                            str(name),
-                        )
-                        if "when" in version:
-                            if image.satisfies(version["when"]):
+                try:
+                    specs_file = yaml_safe_load(fi)
+                    # add versions
+                    for version in specs_file["versions"]:
+                        if isinstance(version["spec"], list):
+                            specs = version["spec"]
+                        else:
+                            specs = [
+                                version["spec"],
+                            ]
+                        for spec in specs:
+                            image = Image(
+                                name.name,
+                                spec,
+                                config.get("velocity:system"),
+                                config.get("velocity:backend"),
+                                config.get("velocity:distro"),
+                                str(name),
+                            )
+                            if "when" in version:
+                                if image.satisfies(version["when"]):
+                                    self.images.add(image)
+                            else:
                                 self.images.add(image)
-                        else:
-                            self.images.add(image)
-                # add constraints
-                # dependencies
-                if "dependencies" in specs_file:
-                    for dependency in specs_file["dependencies"]:
-                        if isinstance(dependency["spec"], list):
-                            specs = dependency["spec"]
-                        else:
-                            specs = [
-                                dependency["spec"],
-                            ]
-                        for spec in specs:
+                    # add constraints
+                    # dependencies
+                    if "dependencies" in specs_file:
+                        for dependency in specs_file["dependencies"]:
+                            if isinstance(dependency["spec"], list):
+                                specs = dependency["spec"]
+                            else:
+                                specs = [
+                                    dependency["spec"],
+                                ]
+                            for spec in specs:
+                                self.constraints.append(
+                                    (
+                                        name.name,
+                                        dependency["when"] if "when" in dependency else "",
+                                        "dependency",
+                                        spec,
+                                        dependency["scope"] if "scope" in dependency else "image",
+                                    )
+                                )
+                    # templates
+                    if "templates" in specs_file:
+                        for template in specs_file["templates"]:
+                            if isinstance(template["name"], list):
+                                specs = template["name"]
+                            else:
+                                specs = [
+                                    template["name"],
+                                ]
+                            for spec in specs:
+                                self.constraints.append(
+                                    (
+                                        name.name,
+                                        template["when"] if "when" in template else "",
+                                        "template",
+                                        spec,
+                                        template["scope"] if "scope" in template else "image",
+                                    )
+                                )
+                    # arguments
+                    if "arguments" in specs_file:
+                        for argument in specs_file["arguments"]:
+                            if isinstance(argument["value"], list):
+                                specs = argument["value"]
+                            else:
+                                specs = [
+                                    argument["value"],
+                                ]
+                            for spec in specs:
+                                self.constraints.append(
+                                    (
+                                        name.name,
+                                        argument["when"] if "when" in argument else "",
+                                        "argument",
+                                        spec,
+                                        argument["scope"] if "scope" in argument else "image",
+                                    )
+                                )
+                    # variables
+                    if "variables" in specs_file:
+                        for variable in specs_file["variables"]:
                             self.constraints.append(
                                 (
                                     name.name,
-                                    dependency["when"] if "when" in dependency else "",
-                                    "dependency",
-                                    spec,
-                                    dependency["scope"] if "scope" in dependency else "image",
+                                    variable["when"] if "when" in variable else "",
+                                    "variable",
+                                    "{}={}".format(variable["name"], variable["value"]),
+                                    variable["scope"] if "scope" in variable else "image",
                                 )
                             )
-                # templates
-                if "templates" in specs_file:
-                    for template in specs_file["templates"]:
-                        if isinstance(template["name"], list):
-                            specs = template["name"]
-                        else:
-                            specs = [
-                                template["name"],
-                            ]
-                        for spec in specs:
+                    # files
+                    if "files" in specs_file:
+                        for file in specs_file["files"]:
+                            if isinstance(file["name"], list):
+                                specs = file["name"]
+                            else:
+                                specs = [
+                                    file["name"],
+                                ]
+                            for spec in specs:
+                                self.constraints.append(
+                                    (
+                                        name.name,
+                                        file["when"] if "when" in file else "",
+                                        "file",
+                                        spec,
+                                        file["scope"] if "scope" in file else "image",
+                                    )
+                                )
+                    # prologs
+                    if "prologs" in specs_file:
+                        for prolog in specs_file["prologs"]:
                             self.constraints.append(
                                 (
                                     name.name,
-                                    template["when"] if "when" in template else "",
-                                    "template",
-                                    spec,
-                                    template["scope"] if "scope" in template else "image",
+                                    prolog["when"] if "when" in prolog else "",
+                                    "prolog",
+                                    prolog["script"],
+                                    prolog["scope"] if "scope" in prolog else "image",
                                 )
                             )
-                # arguments
-                if "arguments" in specs_file:
-                    for argument in specs_file["arguments"]:
-                        if isinstance(argument["value"], list):
-                            specs = argument["value"]
-                        else:
-                            specs = [
-                                argument["value"],
-                            ]
-                        for spec in specs:
-                            self.constraints.append(
-                                (
-                                    name.name,
-                                    argument["when"] if "when" in argument else "",
-                                    "argument",
-                                    spec,
-                                    argument["scope"] if "scope" in argument else "image",
-                                )
-                            )
-                # variables
-                if "variables" in specs_file:
-                    for variable in specs_file["variables"]:
-                        self.constraints.append(
-                            (
-                                name.name,
-                                variable["when"] if "when" in variable else "",
-                                "variable",
-                                "{}={}".format(variable["name"], variable["value"]),
-                                variable["scope"] if "scope" in variable else "image",
-                            )
-                        )
-                # files
-                if "files" in specs_file:
-                    for file in specs_file["files"]:
-                        if isinstance(file["name"], list):
-                            specs = file["name"]
-                        else:
-                            specs = [
-                                file["name"],
-                            ]
-                        for spec in specs:
-                            self.constraints.append(
-                                (
-                                    name.name,
-                                    file["when"] if "when" in file else "",
-                                    "file",
-                                    spec,
-                                    file["scope"] if "scope" in file else "image",
-                                )
-                            )
-                # prologs
-                if "prologs" in specs_file:
-                    for prolog in specs_file["prologs"]:
-                        self.constraints.append(
-                            (
-                                name.name,
-                                prolog["when"] if "when" in prolog else "",
-                                "prolog",
-                                prolog["script"],
-                                prolog["scope"] if "scope" in prolog else "image",
-                            )
-                        )
+                except TypeError as e:
+                    logger.error(e)
+                    logger.critical("Error in configuration file '{}'!".format(name.joinpath("specs.yaml")))
+                    exit(1)
 
     def create_build_recipe(self, targets: list[str]) -> tuple[tuple, ImageGraph]:
         """Create an ordered build recipe of images."""
@@ -714,7 +719,7 @@ class ImageRepo(metaclass=OurMeta):
         build_targets: list[Target] = list()
         for target in targets:
             res = re_fullmatch(
-                r"^(?P<name>[a-zA-Z0-9-]+)(?:(?:@(?P<left>[\d\.]+)(?!@))?(?:@?(?P<colen>:)(?P<right>[\d\.]+)?)?)?$",
+                r"^(?P<name>[a-zA-Z0-9-]+)(?:(?:@(?P<left>[^:\s]+)(?!@))?(?:@?(?P<colen>:)(?P<right>\S+)?)?)?$",
                 target,
             )
             if res is not None:

@@ -24,12 +24,16 @@ from velocity._tools import OurMeta, trace_function
 def read_pipe(pipe: PIPE, topic: SimpleQueue, prefix: str, log: SimpleQueue) -> None:
     """Read a subprocess PIPE and place lines on topic queue and log queue."""
     while True:
-        ln = pipe.readline()
-        if ln == "":
-            break
-        else:
-            topic.put(ln.strip("\n"))
-            log.put("{} {}".format(prefix, ln.strip("\n")))
+        try:
+            ln = pipe.readline()
+            if ln == "":
+                break
+            else:
+                topic.put(ln.strip("\n"))
+                log.put("{} {}".format(prefix, ln.strip("\n")))
+        except UnicodeDecodeError as e:
+            # some ubuntu container builds were printing out wierd characters
+            logger.error(e)
 
 
 @trace_function
