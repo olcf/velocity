@@ -37,7 +37,7 @@ def read_pipe(pipe: PIPE, topic: SimpleQueue, prefix: str, log: SimpleQueue) -> 
 
 
 @trace_function
-def run(cmd: str, log_file: Path = None, verbose: bool = False) -> None:
+def run(cmd: str, log_file: Path = None, verbose: bool = False, critical: bool = True) -> None:
     """Run a system command logging all output to a file and print if verbose."""
     # open log file (set to False if none is provided)
     logger.debug("Running command: {}".format(cmd))
@@ -81,7 +81,11 @@ def run(cmd: str, log_file: Path = None, verbose: bool = False) -> None:
     if process.poll() != 0:
         while stderr.qsize():
             indent_print([TextBlock(stderr.get(), fore=Fore.RED, style=Style.DIM)])
-        exit(process.poll())
+        if critical:
+            logger.critical("Command '{}' exited with non-zero exit code".format(cmd))
+            exit(process.poll())
+        else:
+            logger.error("Command '{}' exited with non-zero exit code".format(cmd))
 
 
 class ImageBuilder(metaclass=OurMeta):
@@ -163,7 +167,7 @@ class ImageBuilder(metaclass=OurMeta):
 
         if not self.dry_run and self.remove_tags:
             for bn in build_names:
-                run(self.backend_engine.clean_up_old_image(bn))
+                run(self.backend_engine.clean_up_old_image(bn), critical=False)
 
         # go back to the starting dir
         chdir(pwd)
