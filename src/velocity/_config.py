@@ -103,7 +103,7 @@ if getenv("VELOCITY_BUILD_DIR") is not None:
     _config.set("velocity:build_dir", getenv("VELOCITY_BUILD_DIR"))
 
 if getenv("VELOCITY_LOGGING_LEVEL") is not None:
-    _config.set("velocity:logging:level", getenv("VELOCITY_LOGGING_LEVEL"))
+    _config.set("velocity:logging:level", getenv("VELOCITY_LOGGING_LEVEL").upper())
 
 # set defaults for un-configured items
 if _config.get("velocity:system", warn_on_miss=False) is None:

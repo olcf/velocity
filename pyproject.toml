@@ -16,6 +16,13 @@ dependencies = [
     "typing_extensions"
 ]
 
+[project.optional-dependencies]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-copybutton"
+]
+
 [project.urls]
 Homepage = "https://github.com/olcf/velocity"
 Issues = "https://github.com/olcf/velocity/issues"

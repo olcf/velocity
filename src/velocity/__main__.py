@@ -130,7 +130,7 @@ if __name__ == "__main__":
         # apply user run time arguments over settings
         ############################################################
         if args.logging_level is not None:
-            config.set("velocity:logging:level", args.logging_level)
+            config.set("velocity:logging:level", args.logging_level.upper())
         if args.system is not None:
             config.set("velocity:system", args.system)
         if args.backend is not None:
