@@ -129,6 +129,8 @@ class ImageBuilder(metaclass=OurMeta):
 
     def build(self) -> None:
         """Launch image builds."""
+        start = timer()
+
         # store pwd
         pwd = Path(Path().absolute())
 
@@ -163,7 +165,6 @@ class ImageBuilder(metaclass=OurMeta):
         final_name = self.backend_engine.format_image_name(Path(pwd.absolute()), tag)
         if not self.dry_run:
             run(self.backend_engine.generate_final_image_cmd(last, final_name))
-        header_print([TextBlock("BUILT: "), TextBlock(final_name, fore=Fore.MAGENTA, style=Style.BRIGHT)])
 
         if not self.dry_run and self.remove_tags:
             for bn in build_names:
@@ -171,6 +172,17 @@ class ImageBuilder(metaclass=OurMeta):
 
         # go back to the starting dir
         chdir(pwd)
+
+        end = timer()
+        header_print(
+            [
+                TextBlock("FINAL IMAGE "),
+                TextBlock(final_name, fore=Fore.MAGENTA, style=Style.BRIGHT),
+                TextBlock(" BUILT ["),
+                TextBlock(str(timedelta(seconds=round(end - start))), fore=Fore.MAGENTA, style=Style.BRIGHT),
+                TextBlock("]"),
+            ]
+        )
 
     def _build_image(self, unit: Image, src_image: str, name: str):
         """Build an individual image."""
