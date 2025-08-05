@@ -283,19 +283,21 @@ class Image(metaclass=OurMeta):
         hash_list.append(self.system)
         # hash_list.append(self.backend) # disable backend for now because it should not make a difference in the image
         hash_list.append(self.distro)
-        hash_list.append(",".join(str(x) for x in self.dependencies))
-        hash_list.append(",".join(str(x) for x in self.variables))
-        hash_list.append(",".join(str(x) for x in self.arguments))
+        hash_list.append(",".join(str(x) for x in sorted(self.dependencies)))
+        hash_list.append(",".join(str(x) for x in sorted(self.variables)))
+        hash_list.append(",".join(str(x) for x in sorted(self.arguments)))
         tf = Path(self.path).joinpath("templates", "{}.vtmp".format(self.template))
         if tf.is_file():
             hash_list.append(sha256(tf.read_bytes()).hexdigest())
         else:
             hash_list.append(None)
-        hash_list.append(",".join(str(x) for x in self.files))
+        hash_list.append(",".join(str(x) for x in sorted(self.files)))
         hash_list.append(self.prolog)
         hash_list.append(self.underlay)
 
         hash_str: str = "|".join(str(x) for x in hash_list)
+        #if self.name == "ucx":
+        #    logger.debug(hash_list)
         return sha256(hash_str.encode()).hexdigest()
 
     @property
