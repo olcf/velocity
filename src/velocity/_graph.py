@@ -1,9 +1,11 @@
 """Graph library and tools for dependency graph"""
 
+from colorama import Fore, Style
 from loguru import logger
 from re import split as re_split, fullmatch as re_fullmatch, Match as ReMatch
 from pathlib import Path
 from hashlib import sha256
+from timeit import default_timer as timer
 from typing_extensions import Self
 from yaml import safe_load as yaml_safe_load
 from copy import deepcopy
@@ -17,6 +19,7 @@ from networkx import (
 )
 from ._config import config
 from ._exceptions import InvalidImageVersionError, CannotFindDependency, EdgeViolatesDAG, NoAvailableBuild
+from ._print import TextBlock, header_print, indent_print
 from ._tools import OurMeta, trace_function
 
 
@@ -716,6 +719,9 @@ class ImageRepo(metaclass=OurMeta):
 
     def create_build_recipe(self, targets: list[str]) -> tuple[tuple, ImageGraph]:
         """Create an ordered build recipe of images."""
+        header_print([TextBlock("Creating build recipe:")])
+        start = timer()
+
         images: set[Image] = deepcopy(self.images)
 
         build_targets: list[Target] = list()
@@ -852,5 +858,8 @@ class ImageRepo(metaclass=OurMeta):
                 for di in bt:
                     if di.satisfies(dep):
                         bt_ig.add_edge(image, di)
+
+        end = timer()
+        indent_print([TextBlock(f"created recipe in {round(end - start, 2)}s\n", fore=Fore.MAGENTA, style=Style.BRIGHT)])
 
         return bt, bt_ig

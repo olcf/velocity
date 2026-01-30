@@ -94,7 +94,7 @@ class ImageBuilder(metaclass=OurMeta):
     def __init__(
         self,
         bt: tuple[Image],
-        build_name: str = None,
+        build_name: str | None = None,
         dry_run: bool = False,
         remove_tags: bool = True,
         clean_build_dir: bool = False,
