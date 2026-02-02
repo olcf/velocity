@@ -4,6 +4,7 @@ import argparse
 from colorama import Fore, Style
 from importlib.metadata import version
 from loguru import logger
+from networkx import neighbors as nx_neighbors
 from re import fullmatch as re_fullmatch
 import sys
 
@@ -207,14 +208,14 @@ if __name__ == "__main__":
             flat_dep_tree = dict()
             for r in recipe:
                 flat_dep_tree[r.name] = set()
-                deps = set(graph.get_dependencies(r))
+                deps = set(nx_neighbors(graph, r))
                 for o in deps.intersection(set(recipe)):
                     flat_dep_tree[r.name].add(o.name)
             # get top level entries
             top_level_entries = set()
             deps = set()
             for r in recipe:
-                deps.update(graph.get_dependencies(r))
+                deps.update(set(nx_neighbors(graph, r)))
             for r in recipe:
                 if r not in deps:
                     top_level_entries.add(r)
