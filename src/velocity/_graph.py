@@ -8,7 +8,6 @@ from re import (
     Match as ReMatch,
     Pattern as RePattern,
     compile as re_compile,
-    fullmatch as re_fullmatch,
     split as re_split,
 )
 from timeit import default_timer as timer
@@ -82,10 +81,10 @@ class Version(metaclass=OurMeta):
         self.vs = version_specifier
         try:
             version_dict: dict = VERSION_REGEX.fullmatch(version_specifier).groupdict()
-            self.major: int | None = int(version_dict["major"]) if version_dict["major"] else None
-            self.minor: int | None = int(version_dict["minor"]) if version_dict["minor"] else None
-            self.patch: int | None = int(version_dict["patch"]) if version_dict["patch"] else None
-            self.suffix: str | None = str(version_dict["suffix"]) if version_dict["suffix"] else None
+            self.major: int | None = int(version_dict["major"]) if version_dict["major"] is not None else None
+            self.minor: int | None = int(version_dict["minor"]) if version_dict["minor"] is not None else None
+            self.patch: int | None = int(version_dict["patch"]) if version_dict["patch"] is not None else None
+            self.suffix: str | None = str(version_dict["suffix"]) if version_dict["suffix"] is not None else None
         except AttributeError:
             self.major: int | None = None
             self.minor: int | None = None
@@ -99,10 +98,10 @@ class Version(metaclass=OurMeta):
     def vcs(self) -> str:
         """Version Comparison String"""
         return "{:#>9}.{:#>9}.{:#>9}.{:~<9}".format(
-            self.major if self.major else "#",
-            self.minor if self.minor else "#",
-            self.patch if self.patch else "#",
-            self.suffix if self.suffix else "~",
+            self.major if self.major is not None else "#",
+            self.minor if self.minor is not None else "#",
+            self.patch if self.patch is not None else "#",
+            self.suffix if self.suffix is not None else "~",
         )
 
     def preferred(self, other) -> bool:
@@ -113,13 +112,13 @@ class Version(metaclass=OurMeta):
     def _vcs_t(self) -> str:
         """Version Comparison String Truncated"""
         vl: int = 0
-        if not self.major:
+        if self.major is None:
             pass
-        elif not self.minor:
+        elif self.minor is None:
             vl = 9
-        elif not self.patch:
+        elif self.patch is None:
             vl = 19
-        elif not self.suffix:
+        elif self.suffix is None:
             vl = 29
         else:
             vl = 39
