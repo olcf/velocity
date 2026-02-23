@@ -97,13 +97,14 @@ Use the `prologs` section to add bash commands that you want to run before the b
 
 Using ``when``
 ##############
-A few notes about using ``when`` to filter config options. The ``when`` option can be used to filter configs as shown
-above by system, backend, distro and dependencies. The only exception to this is the `versions` section which cannot
-be filtered by dependencies. List each item that you want to filter by separated by a space e.g. ``gcc@12.3 system=frontier``.
-Additionally you can specify the scope of a ``when`` by specifying the ``scope``. The default scope is ``image`` which means
-that the when statement is evaluated on the current image. So if you want to apply a config in the gcc `specs.yaml` file
-to every gcc version greater than 10.3.0, you would use ``when: gcc@10.3.0: ^ubuntu``. Alternatively you can set the scope to ``build``
-when you want the ``when`` statement evaluated on all the images in the current build.
+The ``when`` option can be used to filter configs as shown
+above by system, backend, distro and dependencies. The only exception to this is the ``versions`` section which cannot
+be filtered by dependencies. List each item that you want to filter on separated by a space e.g. ``gcc@12.3 system=frontier``.
+
+Sometimes you have optional dependencies that should only get added when they are used somewhere else in a build.
+So, for the ``dependencies`` section you can specify the scope of a ``when``.
+The default scope is ``image`` which means that the ``when`` statement is evaluated on the current image.
+Alternatively you can set the scope to ``build`` when you want the ``when`` statement evaluated on all the images in the current build.
 
 .. code-block:: yaml
 

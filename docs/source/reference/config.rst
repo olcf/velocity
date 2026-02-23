@@ -22,6 +22,7 @@ This variable points to the directories containing the the image definitions.
 `VELOCITY_SYSTEM`
 -----------------
 This variable specifies what computer system you are building for (e.g. frontier).
+It is used purely for organizational purposes.
 
 `VELOCITY_BACKEND`
 ------------------

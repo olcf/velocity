@@ -10,7 +10,7 @@ backends (e.g podman or apptainer) and distros.
 
 .. important::
 
-    While Velocity provides a compatibility layer for `Apptainer <https://apptainer.org/documentation/>`_ and
+    While Velocity provides a compatibility layer for container backends such as `Apptainer <https://apptainer.org/documentation/>`_ and
     `Podman <https://docs.podman.io/en/latest>`_, it is still important to have a basic
     knowledge of how they work and the container building process in general.
 
