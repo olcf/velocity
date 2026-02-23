@@ -9,6 +9,7 @@ from threading import Thread
 from timeit import default_timer as timer
 from queue import SimpleQueue
 from subprocess import PIPE, Popen
+from time import sleep
 
 from colorama import Fore, Style
 from loguru import logger
@@ -32,7 +33,7 @@ def read_pipe(pipe: PIPE, topic: SimpleQueue, prefix: str, log: SimpleQueue) -> 
                 topic.put(ln.strip("\n"))
                 log.put("{} {}".format(prefix, ln.strip("\n")))
         except UnicodeDecodeError as e:
-            # some ubuntu container builds were printing out wierd characters
+            # some ubuntu container builds were printing out weird characters
             logger.error(e)
 
 
@@ -62,6 +63,7 @@ def run(cmd: str, log_file: Path = None, verbose: bool = False, critical: bool =
         if file and not log.empty():
             file.write(log.get() + "\n")
             file.flush()  # TODO is this needed?
+        sleep(0.01)  # Sleep 10ms to reduce CPU usage
 
     out.join()
     err.join()
@@ -94,7 +96,7 @@ class ImageBuilder(metaclass=OurMeta):
     def __init__(
         self,
         bt: tuple[Image],
-        build_name: str = None,
+        build_name: str | None = None,
         dry_run: bool = False,
         remove_tags: bool = True,
         clean_build_dir: bool = False,

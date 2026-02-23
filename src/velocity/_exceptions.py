@@ -20,8 +20,8 @@ class NoAvailableBuild(Exception):
 class EdgeViolatesDAG(Exception):
     """Edge breaks the DAG requirement of a graph."""
 
-    def __init__(self, u_of_edge, v_of_edge, cycle) -> None:
-        super().__init__(f"Addition of edge {u_of_edge} -> {v_of_edge} violates graph DAG requirement!")
+    def __init__(self, cycle) -> None:
+        super().__init__("Addition of edge(s) violates graph DAG requirement!")
         for c in cycle:
             print(f"{c[0]} -> {c[1]}", file=stderr)
 
@@ -80,6 +80,12 @@ class InvalidConfigIdentifier(Exception):
 
 class InvalidCLIArgumentFormat(Exception):
     """Invalid format for a CLI argument."""
+
+    def __init__(self, *args) -> None:
+        super().__init__(*args)
+
+class SpecSyntaxError(Exception):
+    """Invalid spec syntax."""
 
     def __init__(self, *args) -> None:
         super().__init__(*args)

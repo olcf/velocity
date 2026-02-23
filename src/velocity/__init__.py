@@ -7,7 +7,7 @@ logger.disable("velocity")  # noqa: E702 # disable logging at the module level
 from velocity._config import config  # noqa: E402
 from velocity._graph import ImageRepo  # noqa: E402
 from velocity._build import ImageBuilder  # noqa: E402
-from velocity._print import TextBlock, header_print, indent_print  # noqa: E402
+from velocity._print import TextBlock, bare_print, header_print, indent_print  # noqa: E402
 
 
 # config functions
@@ -85,7 +85,7 @@ def set_distro(distro: str) -> None:
 
 def build(
     targets: str,
-    name: str = None,
+    name: str | None = None,
     dry_run: bool = False,
     leave_tags: bool = False,
     verbose: bool = False,
@@ -120,7 +120,7 @@ def build(
     header_print([TextBlock("Build Order:")])
     for r in recipe:
         indent_print([TextBlock(f"{r.name}@{r.version}-{r.id}", fore=Fore.MAGENTA, style=Style.BRIGHT)])
-    print()  # newline
+    bare_print([])  # newline
 
     # prep builder
     builder = ImageBuilder(
