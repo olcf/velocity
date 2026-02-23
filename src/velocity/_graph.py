@@ -5,7 +5,6 @@ from enum import Enum
 from hashlib import sha256
 from pathlib import Path
 from re import (
-    Match as ReMatch,
     Pattern as RePattern,
     compile as re_compile,
     split as re_split,
@@ -215,69 +214,56 @@ class Image(metaclass=OurMeta):
 
         # else evaluate conditional
         ss: list[str] = re_split(r"\s+", spec.strip())
-
+        result = True
         for part in ss:
+            # not
+            not_flag = False
+            if part[0] == "!":
+                not_flag = True
+                part = part[1:]
+
             # name and version
-            res: ReMatch | None = self.name_version_regex.fullmatch(part)
-            if res:
+            if res := self.name_version_regex.fullmatch(part):
                 gd: dict = res.groupdict()
-                if gd["left"] and not gd["right"]:  # n@v: or n@v
+                if gd["left"] and gd["right"]:  # n@v:v
+                    result = (Version(gd["left"]) <= self.version <= Version(gd["right"])) ^ not_flag
+                elif gd["left"] and not gd["right"]:  # n@v: or n@v
                     if gd["colen"]:
-                        if Version(gd["left"]) > self.version:
-                            return False
+                        result = (Version(gd["left"]) <= self.version) ^ not_flag
                     else:
-                        if Version(gd["left"]) != self.version:
-                            return False
+                        result = (Version(gd["left"]) == self.version) ^ not_flag
                 elif not gd["left"] and gd["right"]:  # n@:v
+                    result = (self.version <= Version(gd["right"])) ^ not_flag
+                else:  # n
                     if gd["colen"]:
-                        if Version(gd["right"]) < self.version:
-                            return False
-                    else:
-                        return False
-                elif not gd["left"] and not gd["right"]:  # n
-                    if gd["colen"]:
-                        return False
-                else:  # n@v:v
-                    if Version(gd["left"]) > self.version or self.version > Version(gd["right"]):
-                        return False
-                continue  # part has been handled so continue
+                        raise SpecSyntaxError("Invalid syntax '{}'.".format(spec))
+                    result = True ^ not_flag
 
             # system
-            res = SYSTEM_REGEX.fullmatch(part)
-            if res:
-                if res.group("system") != self.system:
-                    return False
-                continue  # part has been handled so continue
+            elif res := SYSTEM_REGEX.fullmatch(part):
+                result = (res.group("system") == self.system) ^ not_flag
 
             # backend
-            res = BACKEND_REGEX.fullmatch(part)
-            if res:
-                if res.group("backend") != self.backend:
-                    return False
-                continue  # part has been handled so continue
+            elif res := BACKEND_REGEX.fullmatch(part):
+                result = (res.group("backend") == self.backend) ^ not_flag
 
             # distro
-            res = DISTRO_REGEX.fullmatch(part)
-            if res:
-                if res.group("distro") != self.distro:
-                    return False
-                continue  # part has been handled so continue
+            elif res := DISTRO_REGEX.fullmatch(part):
+                result = (res.group("distro") == self.distro) ^ not_flag
 
             # dependencies
-            res = DEPENDENCY_REGEX.fullmatch(part)
-            if res:
-                matched = False
-                for dep in self.dependencies:
-                    if res.group("name") == dep:
-                        matched = True
-                if matched:
-                    continue  # match is found so continue
+            elif res := DEPENDENCY_REGEX.fullmatch(part):
+                result = (res.group("name") in self.dependencies) ^ not_flag
 
             # if we get here this part has not been handled
-            return False
+            else:
+                result = False
 
-        # all parts were handled
-        return True
+            # if result is False break
+            if not result:
+                break
+
+        return result
 
     def apply_constraint(self, conditional: str, _type: str, spec: str) -> bool:
         """Evaluate and apply constraints. Return True if a constraint changes the dependencies."""
@@ -310,14 +296,21 @@ class Image(metaclass=OurMeta):
         # hash_list.append(self.backend) # disable backend for now because it should not make a difference in the image
         hash_list.append(self.distro)
         hash_list.append(",".join(str(x) for x in sorted(self.dependencies)))
-        hash_list.append(",".join(str(x) for x in sorted(self.variables)))
+        hash_list.append(",".join(x + "=" + str(self.variables[x]) for x in sorted(self.variables)))
         hash_list.append(",".join(str(x) for x in sorted(self.arguments)))
+
         tf = Path(self.path).joinpath("templates", "{}.vtmp".format(self.template))
         if tf.is_file():
             hash_list.append(sha256(tf.read_bytes()).hexdigest())
         else:
             hash_list.append(None)
-        hash_list.append(",".join(str(x) for x in sorted(self.files)))
+
+        for file in sorted(self.files):
+            hash_list.append(file)
+            tf = Path(self.path).joinpath("files", file)
+            if tf.is_file():
+                hash_list.append(sha256(tf.read_bytes()).hexdigest())
+
         hash_list.append(self.prolog)
         hash_list.append(self.underlay)
 
