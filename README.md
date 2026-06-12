@@ -23,3 +23,7 @@ pip install olcf-velocity
 alias velocity="python3 -m velocity"
 velocity
 ```
+
+## Contribution
+Contributions are welcome! All contributions will be licensed under the terms
+in [LICENCE](LICENSE).
