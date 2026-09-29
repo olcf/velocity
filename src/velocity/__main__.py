@@ -15,9 +15,8 @@ from velocity._print import TextBlock, bare_print, header_print, indent_print
 from velocity._exceptions import InvalidCLIArgumentFormat
 
 
-if __name__ == "__main__":
-    try:    # catch keyboard interrupts
-
+def main() -> None:
+    try:  # catch keyboard interrupts
         ############################################################
         # Parse Args
         ############################################################
@@ -53,7 +52,9 @@ if __name__ == "__main__":
             action="store_true",
             help="do not clean up intermediate build tags (only applies to dockerish backends)",
         )
-        build_parser.add_argument("-v", "--verbose", action="store_true", help="print helpful debug/runtime information")
+        build_parser.add_argument(
+            "-v", "--verbose", action="store_true", help="print helpful debug/runtime information"
+        )
         build_parser.add_argument("-c", "--clean", action="store_true", help="run clean build (delete cached builds)")
         build_parser.add_argument(
             "-A",
@@ -256,7 +257,13 @@ if __name__ == "__main__":
             bare_print([])  # add newline
 
     except KeyboardInterrupt:
-        bare_print([
-            TextBlock("\b\b==> ", fore=Fore.YELLOW, style=Style.BRIGHT),
-            TextBlock("Keyboard Interrupt", fore=Fore.MAGENTA, style=Style.BRIGHT)
-        ])
+        bare_print(
+            [
+                TextBlock("\b\b==> ", fore=Fore.YELLOW, style=Style.BRIGHT),
+                TextBlock("Keyboard Interrupt", fore=Fore.MAGENTA, style=Style.BRIGHT),
+            ]
+        )
+
+
+if __name__ == "__main__":
+    main()

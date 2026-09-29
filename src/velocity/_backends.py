@@ -30,7 +30,7 @@ def _substitute(text: str, variables: dict[str, str], regex: str) -> str:
             return str(variables[m.group(1)])
         except KeyError:
             logger.warning("The variable '{}' is undefined. Setting value to ''.".format(m.group(1)))
-            return ''
+            return ""
 
     substitute: str = re_sub(regex, _replace, text)
     while substitute != text:

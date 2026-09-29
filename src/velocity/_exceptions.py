@@ -84,6 +84,7 @@ class InvalidCLIArgumentFormat(Exception):
     def __init__(self, *args) -> None:
         super().__init__(*args)
 
+
 class SpecSyntaxError(Exception):
     """Invalid spec syntax."""
 
